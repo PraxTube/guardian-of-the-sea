@@ -1,14 +1,17 @@
-//use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
-use bevy::window::{PresentMode, PrimaryWindow, Window};
+use bevy::window::{PresentMode, PrimaryWindow, Window, WindowMode};
 
 use bevy_asset_loader::prelude::*;
 
 mod utils;
 
 const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
+
+#[derive(Component)]
+pub struct MainCamera;
 
 #[derive(States, Clone, Eq, PartialEq, Debug, Hash, Default)]
 pub enum GameState {
@@ -77,38 +80,40 @@ fn main() {
             LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Gaming),
         )
         .add_collection_to_loading_state::<_, GameAssets>(GameState::AssetLoading)
-        .add_plugins(
+        .add_plugins((
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        present_mode: PresentMode::Fifo,
+                        present_mode: PresentMode::AutoVsync,
+                        mode: WindowMode::Fullscreen,
                         ..default()
                     }),
                     ..default()
                 })
                 .set(ImagePlugin::default_nearest())
                 .build(),
-        )
+            FrameTimeDiagnosticsPlugin,
+            LogDiagnosticsPlugin::default(),
+        ))
         .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
         .init_resource::<MouseWorldCoords>()
         .add_systems(
             OnEnter(GameState::Gaming),
-            (spawn_camera, spawn_player, spawn_turret),
+            (spawn_camera, spawn_player, spawn_turret, spawn_water_tiles),
         )
         .add_systems(
             Update,
             (
                 steer_player,
+                accelerate_player,
+                fetch_scroll_events,
                 move_ships,
                 reposition_turrets,
                 rotate_turrets,
-                accelerate_player,
                 fetch_mouse_world_coords,
-                fetch_scroll_events,
-                move_camera
-                    .after(move_ships)
-                    .after(fetch_mouse_world_coords),
+                move_camera,
             )
+                .chain()
                 .run_if(in_state(GameState::Gaming)),
         )
         .run();
@@ -117,7 +122,7 @@ fn main() {
 fn spawn_camera(mut commands: Commands) {
     let mut camera = Camera2dBundle::default();
     camera.projection.scaling_mode = ScalingMode::FixedVertical(750.0);
-    commands.spawn(camera);
+    commands.spawn((MainCamera, camera));
 }
 
 fn spawn_player(mut commands: Commands, assets: Res<GameAssets>) {
@@ -129,13 +134,6 @@ fn spawn_player(mut commands: Commands, assets: Res<GameAssets>) {
             ..default()
         },
     ));
-
-    commands.spawn((SpriteBundle {
-        texture: assets.water.clone(),
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -100.0))
-            .with_scale(Vec3::splat(4.0)),
-        ..default()
-    },));
 }
 
 fn spawn_turret(mut commands: Commands, assets: Res<GameAssets>) {
@@ -151,7 +149,7 @@ fn spawn_turret(mut commands: Commands, assets: Res<GameAssets>) {
 fn fetch_mouse_world_coords(
     mut mouse_coords: ResMut<MouseWorldCoords>,
     q_window: Query<&Window, With<PrimaryWindow>>,
-    q_camera: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
     let (camera, camera_transform) = q_camera.single();
     let window = q_window.single();
@@ -167,7 +165,7 @@ fn fetch_mouse_world_coords(
 
 fn fetch_scroll_events(
     mut scroll_evr: EventReader<MouseWheel>,
-    mut q_projection: Query<&mut OrthographicProjection, With<Camera2d>>,
+    mut q_projection: Query<&mut OrthographicProjection, With<MainCamera>>,
 ) {
     for ev in scroll_evr.read() {
         let mut projection = q_projection.single_mut();
@@ -187,7 +185,7 @@ fn fetch_scroll_events(
 fn move_camera(
     mut q_camera: Query<
         (&mut Transform, &OrthographicProjection),
-        (With<Camera2d>, Without<Player>),
+        (With<MainCamera>, Without<Player>),
     >,
     q_player: Query<&Transform, With<Player>>,
     mouse_coords: Res<MouseWorldCoords>,
@@ -195,6 +193,7 @@ fn move_camera(
     let (mut camera_transform, projection) = q_camera.single_mut();
     let player_pos = q_player.single().translation;
 
+    // camera_transform.translation = player_pos;
     camera_transform.translation =
         player_pos + (mouse_coords.0.extend(0.0) - player_pos) / 4.0 / projection.scale;
 }
@@ -237,8 +236,6 @@ fn accelerate_player(
         acceleration -= 1.0;
     }
 
-    info!("{:?}", ship_stats.current_speed);
-
     ship_stats.current_speed = (ship_stats.current_speed
         + acceleration * ship_stats.delta_speed * time.delta_seconds())
     .clamp(ship_stats.min_speed, ship_stats.max_speed);
@@ -271,4 +268,12 @@ fn rotate_turrets(
         turret.rotation =
             utils::quat_from_vec2(-1.0 * (mouse_coords.0 - turret.translation.truncate()).perp());
     }
+}
+
+fn spawn_water_tiles(mut commands: Commands, assets: Res<GameAssets>) {
+    commands.spawn((SpriteBundle {
+        texture: assets.water.clone(),
+        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -100.0)),
+        ..default()
+    },));
 }
