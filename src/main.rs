@@ -1,4 +1,4 @@
-//use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
@@ -7,8 +7,6 @@ use bevy::window::{PresentMode, PrimaryWindow, Window};
 use bevy_asset_loader::prelude::*;
 
 mod utils;
-
-const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
 
 #[derive(States, Clone, Eq, PartialEq, Debug, Hash, Default)]
 pub enum GameState {
@@ -22,28 +20,12 @@ pub struct GameAssets {
     #[asset(path = "ship.png")]
     pub ship: Handle<Image>,
 
-    #[asset(path = "turret.png")]
-    pub turret: Handle<Image>,
-
     #[asset(path = "water.png")]
     pub water: Handle<Image>,
 }
 
 #[derive(Component)]
 pub struct Player {}
-
-#[derive(Component)]
-pub struct Turret {
-    pub offset: Vec3,
-}
-
-impl Default for Turret {
-    fn default() -> Self {
-        Self {
-            offset: Vec3::default(),
-        }
-    }
-}
 
 #[derive(Component)]
 pub struct ShipStats {
@@ -77,7 +59,7 @@ fn main() {
             LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Gaming),
         )
         .add_collection_to_loading_state::<_, GameAssets>(GameState::AssetLoading)
-        .add_plugins(
+        .add_plugins((
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
@@ -88,20 +70,17 @@ fn main() {
                 })
                 .set(ImagePlugin::default_nearest())
                 .build(),
-        )
+            FrameTimeDiagnosticsPlugin,
+            LogDiagnosticsPlugin::default(),
+        ))
         .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
         .init_resource::<MouseWorldCoords>()
-        .add_systems(
-            OnEnter(GameState::Gaming),
-            (spawn_camera, spawn_player, spawn_turret),
-        )
+        .add_systems(OnEnter(GameState::Gaming), (spawn_camera, spawn_player))
         .add_systems(
             Update,
             (
                 steer_player,
                 move_ships,
-                reposition_turrets,
-                rotate_turrets,
                 accelerate_player,
                 fetch_mouse_world_coords,
                 fetch_scroll_events,
@@ -136,16 +115,6 @@ fn spawn_player(mut commands: Commands, assets: Res<GameAssets>) {
             .with_scale(Vec3::splat(4.0)),
         ..default()
     },));
-}
-
-fn spawn_turret(mut commands: Commands, assets: Res<GameAssets>) {
-    commands.spawn((
-        SpriteBundle {
-            texture: assets.turret.clone(),
-            ..default()
-        },
-        Turret::default(),
-    ));
 }
 
 fn fetch_mouse_world_coords(
@@ -237,8 +206,6 @@ fn accelerate_player(
         acceleration -= 1.0;
     }
 
-    info!("{:?}", ship_stats.current_speed);
-
     ship_stats.current_speed = (ship_stats.current_speed
         + acceleration * ship_stats.delta_speed * time.delta_seconds())
     .clamp(ship_stats.min_speed, ship_stats.max_speed);
@@ -248,27 +215,5 @@ fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &ShipStats)>) {
     for (mut transform, ship_stats) in &mut ships {
         let direction = transform.local_y();
         transform.translation += direction * ship_stats.current_speed * time.delta_seconds();
-    }
-}
-
-fn reposition_turrets(
-    mut turrets: Query<(&mut Transform, &Turret), Without<Player>>,
-    q_player: Query<&Transform, With<Player>>,
-) {
-    let player_transform = q_player.single();
-    for (mut turret_transform, turret) in &mut turrets {
-        turret_transform.translation = player_transform.translation
-            + player_transform.rotation.mul_vec3(turret.offset)
-            + TURRET_Z_OFFSET;
-    }
-}
-
-fn rotate_turrets(
-    mut turrets: Query<&mut Transform, With<Turret>>,
-    mouse_coords: Res<MouseWorldCoords>,
-) {
-    for mut turret in &mut turrets {
-        turret.rotation =
-            utils::quat_from_vec2(-1.0 * (mouse_coords.0 - turret.translation.truncate()).perp());
     }
 }
