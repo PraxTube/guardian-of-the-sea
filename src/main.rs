@@ -5,10 +5,10 @@ use bevy::render::camera::ScalingMode;
 use bevy::window::{PresentMode, PrimaryWindow, Window, WindowMode};
 
 use bevy_asset_loader::prelude::*;
+use turret::{SpawnTurretsEvent, Turret};
 
+mod turret;
 mod utils;
-
-const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
 
 #[derive(Component)]
 pub struct MainCamera;
@@ -24,6 +24,8 @@ pub enum GameState {
 pub struct GameAssets {
     #[asset(path = "ship.png")]
     pub ship: Handle<Image>,
+    #[asset(path = "boat.png")]
+    pub boat: Handle<Image>,
 
     #[asset(path = "turret.png")]
     pub turret: Handle<Image>,
@@ -33,19 +35,8 @@ pub struct GameAssets {
 }
 
 #[derive(Component)]
-pub struct Player {}
-
-#[derive(Component)]
-pub struct Turret {
-    pub offset: Vec3,
-}
-
-impl Default for Turret {
-    fn default() -> Self {
-        Self {
-            offset: Vec3::default(),
-        }
-    }
+pub struct Player {
+    active_momentum: bool,
 }
 
 #[derive(Component)]
@@ -84,7 +75,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        present_mode: PresentMode::AutoVsync,
+                        present_mode: PresentMode::Immediate,
                         mode: WindowMode::Fullscreen,
                         ..default()
                     }),
@@ -97,19 +88,28 @@ fn main() {
         ))
         .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
         .init_resource::<MouseWorldCoords>()
+        .add_event::<turret::SpawnTurretsEvent>()
         .add_systems(
             OnEnter(GameState::Gaming),
-            (spawn_camera, spawn_player, spawn_turret, spawn_water_tiles),
+            (
+                spawn_camera,
+                spawn_player_small,
+                // spawn_player_big,
+                turret::spawn_turrets,
+                spawn_water_tiles,
+            ),
         )
         .add_systems(
             Update,
             (
                 steer_player,
                 accelerate_player,
+                toggle_player_active_momentum,
+                reduce_player_speed,
                 fetch_scroll_events,
                 move_ships,
-                reposition_turrets,
-                rotate_turrets,
+                turret::reposition_turrets,
+                turret::rotate_turrets,
                 fetch_mouse_world_coords,
                 move_camera,
             )
@@ -125,25 +125,54 @@ fn spawn_camera(mut commands: Commands) {
     commands.spawn((MainCamera, camera));
 }
 
-fn spawn_player(mut commands: Commands, assets: Res<GameAssets>) {
+fn spawn_player_small(
+    mut commands: Commands,
+    assets: Res<GameAssets>,
+    mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
+) {
     commands.spawn((
-        Player {},
+        Player {
+            active_momentum: true,
+        },
         ShipStats::default(),
         SpriteBundle {
             texture: assets.ship.clone(),
             ..default()
         },
     ));
+    ev_spawn_turrets.send(SpawnTurretsEvent {
+        turrets: vec![Turret::default()],
+    })
 }
 
-fn spawn_turret(mut commands: Commands, assets: Res<GameAssets>) {
+fn spawn_player_big(
+    mut commands: Commands,
+    assets: Res<GameAssets>,
+    mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
+) {
+    let mut ship_stats = ShipStats::default();
+    ship_stats.delta_speed *= 0.75;
+    ship_stats.delta_steering *= 0.5;
     commands.spawn((
+        Player {
+            active_momentum: true,
+        },
+        ship_stats,
         SpriteBundle {
-            texture: assets.turret.clone(),
+            texture: assets.boat.clone(),
             ..default()
         },
-        Turret::default(),
     ));
+    ev_spawn_turrets.send(SpawnTurretsEvent {
+        turrets: vec![
+            Turret::new(Vec2::new(16.0, 16.0)),
+            Turret::new(Vec2::new(-16.0, 16.0)),
+            Turret::new(Vec2::new(16.0, -16.0)),
+            Turret::new(Vec2::new(-16.0, -16.0)),
+            Turret::new(Vec2::new(-16.0, 48.0)),
+            Turret::new(Vec2::new(16.0, 48.0)),
+        ],
+    })
 }
 
 fn fetch_mouse_world_coords(
@@ -241,6 +270,15 @@ fn accelerate_player(
     .clamp(ship_stats.min_speed, ship_stats.max_speed);
 }
 
+fn toggle_player_active_momentum(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut Player>) {
+    if !keys.just_pressed(KeyCode::T) {
+        return;
+    }
+
+    let mut player = q_player.single_mut();
+    player.active_momentum = !player.active_momentum;
+}
+
 fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &ShipStats)>) {
     for (mut transform, ship_stats) in &mut ships {
         let direction = transform.local_y();
@@ -248,32 +286,25 @@ fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &ShipStats)>) {
     }
 }
 
-fn reposition_turrets(
-    mut turrets: Query<(&mut Transform, &Turret), Without<Player>>,
-    q_player: Query<&Transform, With<Player>>,
-) {
-    let player_transform = q_player.single();
-    for (mut turret_transform, turret) in &mut turrets {
-        turret_transform.translation = player_transform.translation
-            + player_transform.rotation.mul_vec3(turret.offset)
-            + TURRET_Z_OFFSET;
+fn reduce_player_speed(time: Res<Time>, mut q_player: Query<(&mut ShipStats, &Player)>) {
+    let (mut ship_stats, player) = q_player.single_mut();
+    if player.active_momentum || ship_stats.current_speed == 0.0 {
+        return;
     }
-}
 
-fn rotate_turrets(
-    mut turrets: Query<&mut Transform, With<Turret>>,
-    mouse_coords: Res<MouseWorldCoords>,
-) {
-    for mut turret in &mut turrets {
-        turret.rotation =
-            utils::quat_from_vec2(-1.0 * (mouse_coords.0 - turret.translation.truncate()).perp());
+    let reduction = ship_stats.delta_speed / 2.0 * time.delta_seconds();
+    if ship_stats.current_speed > 0.0 {
+        ship_stats.current_speed = (ship_stats.current_speed - reduction).max(0.0);
+    } else {
+        ship_stats.current_speed = (ship_stats.current_speed + reduction).min(0.0);
     }
 }
 
 fn spawn_water_tiles(mut commands: Commands, assets: Res<GameAssets>) {
     commands.spawn((SpriteBundle {
         texture: assets.water.clone(),
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -100.0)),
+        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -100.0))
+            .with_scale(Vec3::splat(10.0)),
         ..default()
     },));
 }
