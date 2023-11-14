@@ -7,6 +7,7 @@ use bevy::window::{PresentMode, PrimaryWindow, Window, WindowMode};
 use bevy_asset_loader::prelude::*;
 use turret::{SpawnTurretsEvent, Turret};
 
+mod projectile;
 mod turret;
 mod utils;
 
@@ -32,6 +33,9 @@ pub struct GameAssets {
 
     #[asset(path = "water.png")]
     pub water: Handle<Image>,
+
+    #[asset(path = "rocket.png")]
+    pub rocket: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -89,13 +93,13 @@ fn main() {
         .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
         .init_resource::<MouseWorldCoords>()
         .add_event::<turret::SpawnTurretsEvent>()
+        .add_event::<projectile::rocket::RocketFired>()
         .add_systems(
             OnEnter(GameState::Gaming),
             (
                 spawn_camera,
-                spawn_player_small,
-                // spawn_player_big,
-                turret::spawn_turrets,
+                // spawn_player_small,
+                spawn_player_big,
                 spawn_water_tiles,
             ),
         )
@@ -108,8 +112,14 @@ fn main() {
                 reduce_player_speed,
                 fetch_scroll_events,
                 move_ships,
+                turret::spawn_turrets,
                 turret::reposition_turrets,
                 turret::rotate_turrets,
+                turret::cooldown_turrets,
+                projectile::rocket::shoot_rockets,
+                projectile::rocket::fire_rockets,
+                projectile::rocket::move_rockets,
+                projectile::rocket::despawn_rockets,
                 fetch_mouse_world_coords,
                 move_camera,
             )
@@ -222,7 +232,6 @@ fn move_camera(
     let (mut camera_transform, projection) = q_camera.single_mut();
     let player_pos = q_player.single().translation;
 
-    // camera_transform.translation = player_pos;
     camera_transform.translation =
         player_pos + (mouse_coords.0.extend(0.0) - player_pos) / 4.0 / projection.scale;
 }

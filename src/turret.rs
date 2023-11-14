@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 use crate::utils::quat_from_vec2;
@@ -8,12 +10,16 @@ const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
 #[derive(Component, Clone)]
 pub struct Turret {
     pub offset: Vec3,
+    pub cooling_down: bool,
+    pub cooldown_timer: Timer,
 }
 
 impl Default for Turret {
     fn default() -> Self {
         Self {
             offset: Vec3::default(),
+            cooling_down: false,
+            cooldown_timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Repeating),
         }
     }
 }
@@ -22,6 +28,7 @@ impl Turret {
     pub fn new(offset: Vec2) -> Self {
         Self {
             offset: offset.extend(0.0),
+            ..default()
         }
     }
 }
@@ -68,5 +75,19 @@ pub fn rotate_turrets(
     for mut turret in &mut turrets {
         turret.rotation =
             quat_from_vec2(-1.0 * (mouse_coords.0 - turret.translation.truncate()).perp());
+    }
+}
+
+pub fn cooldown_turrets(time: Res<Time>, mut q_turrets: Query<&mut Turret>) {
+    for mut turret in &mut q_turrets {
+        if !turret.cooling_down {
+            continue;
+        }
+
+        turret.cooldown_timer.tick(time.delta());
+
+        if turret.cooldown_timer.just_finished() {
+            turret.cooling_down = false;
+        }
     }
 }
