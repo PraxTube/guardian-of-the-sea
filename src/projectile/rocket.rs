@@ -22,7 +22,7 @@ impl Default for Rocket {
         Self {
             source: None,
             current_speed: 0.0,
-            timer: Timer::new(Duration::from_secs_f32(5.0), TimerMode::Once),
+            timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Once),
             disabled: false,
         }
     }
