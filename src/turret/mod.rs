@@ -3,9 +3,29 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::utils::quat_from_vec2;
-use crate::{GameAssets, MouseWorldCoords, Player};
+use crate::{
+    fetch_mouse_world_coords, move_ships, GameAssets, GameState, MouseWorldCoords, Player,
+};
 
 const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
+
+pub struct TurretPlugin;
+
+impl Plugin for TurretPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                spawn_turrets,
+                reposition_turrets.after(move_ships),
+                rotate_turrets.after(fetch_mouse_world_coords),
+                cooldown_turrets,
+            )
+                .run_if(in_state(GameState::Gaming)),
+        )
+        .add_event::<SpawnTurretsEvent>();
+    }
+}
 
 #[derive(Component, Clone)]
 pub struct Turret {
@@ -38,7 +58,7 @@ pub struct SpawnTurretsEvent {
     pub turrets: Vec<Turret>,
 }
 
-pub fn spawn_turrets(
+fn spawn_turrets(
     mut commands: Commands,
     assets: Res<GameAssets>,
     mut ev_spawn_turrets: EventReader<SpawnTurretsEvent>,
@@ -56,7 +76,7 @@ pub fn spawn_turrets(
     }
 }
 
-pub fn reposition_turrets(
+fn reposition_turrets(
     mut turrets: Query<(&mut Transform, &Turret), Without<Player>>,
     q_player: Query<&Transform, With<Player>>,
 ) {
@@ -68,7 +88,7 @@ pub fn reposition_turrets(
     }
 }
 
-pub fn rotate_turrets(
+fn rotate_turrets(
     mut turrets: Query<&mut Transform, With<Turret>>,
     mouse_coords: Res<MouseWorldCoords>,
 ) {
@@ -78,7 +98,7 @@ pub fn rotate_turrets(
     }
 }
 
-pub fn cooldown_turrets(time: Res<Time>, mut q_turrets: Query<&mut Turret>) {
+fn cooldown_turrets(time: Res<Time>, mut q_turrets: Query<&mut Turret>) {
     for mut turret in &mut q_turrets {
         if !turret.cooling_down {
             continue;

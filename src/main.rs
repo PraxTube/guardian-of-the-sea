@@ -1,7 +1,6 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
-use bevy::render::camera::ScalingMode;
 use bevy::window::{PresentMode, PrimaryWindow, Window, WindowMode};
 
 use bevy_asset_loader::prelude::*;
@@ -10,9 +9,9 @@ use turret::{SpawnTurretsEvent, Turret};
 mod projectile;
 mod turret;
 mod utils;
+mod world;
 
-#[derive(Component)]
-pub struct MainCamera;
+use world::MainCamera;
 
 #[derive(States, Clone, Eq, PartialEq, Debug, Hash, Default)]
 pub enum GameState {
@@ -79,7 +78,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        present_mode: PresentMode::Immediate,
+                        present_mode: PresentMode::Fifo,
                         mode: WindowMode::Fullscreen,
                         ..default()
                     }),
@@ -90,14 +89,16 @@ fn main() {
             FrameTimeDiagnosticsPlugin,
             LogDiagnosticsPlugin::default(),
         ))
+        .add_plugins((
+            projectile::ProjectilePlugin,
+            turret::TurretPlugin,
+            world::GuardianWorldPlugin,
+        ))
         .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
         .init_resource::<MouseWorldCoords>()
-        .add_event::<turret::SpawnTurretsEvent>()
-        .add_event::<projectile::rocket::RocketFired>()
         .add_systems(
             OnEnter(GameState::Gaming),
             (
-                spawn_camera,
                 // spawn_player_small,
                 spawn_player_big,
                 spawn_water_tiles,
@@ -111,28 +112,13 @@ fn main() {
                 toggle_player_active_momentum,
                 reduce_player_speed,
                 fetch_scroll_events,
-                move_ships,
-                turret::spawn_turrets,
-                turret::reposition_turrets,
-                turret::rotate_turrets,
-                turret::cooldown_turrets,
-                projectile::rocket::shoot_rockets,
-                projectile::rocket::fire_rockets,
-                projectile::rocket::move_rockets,
-                projectile::rocket::despawn_rockets,
                 fetch_mouse_world_coords,
-                move_camera,
+                move_ships,
             )
                 .chain()
                 .run_if(in_state(GameState::Gaming)),
         )
         .run();
-}
-
-fn spawn_camera(mut commands: Commands) {
-    let mut camera = Camera2dBundle::default();
-    camera.projection.scaling_mode = ScalingMode::FixedVertical(750.0);
-    commands.spawn((MainCamera, camera));
 }
 
 fn spawn_player_small(
@@ -219,21 +205,6 @@ fn fetch_scroll_events(
             }
         }
     }
-}
-
-fn move_camera(
-    mut q_camera: Query<
-        (&mut Transform, &OrthographicProjection),
-        (With<MainCamera>, Without<Player>),
-    >,
-    q_player: Query<&Transform, With<Player>>,
-    mouse_coords: Res<MouseWorldCoords>,
-) {
-    let (mut camera_transform, projection) = q_camera.single_mut();
-    let player_pos = q_player.single().translation;
-
-    camera_transform.translation =
-        player_pos + (mouse_coords.0.extend(0.0) - player_pos) / 4.0 / projection.scale;
 }
 
 fn steer_player(
