@@ -12,15 +12,28 @@ const SPARY_INTENSITY: f32 = 0.05;
 
 #[derive(Component, Clone)]
 pub struct Rocket {
+    source: Option<Entity>,
     current_speed: f32,
     timer: Timer,
+    disabled: bool,
 }
 
 impl Default for Rocket {
     fn default() -> Self {
         Self {
+            source: None,
             current_speed: 0.0,
             timer: Timer::new(Duration::from_secs_f32(5.0), TimerMode::Once),
+            disabled: false,
+        }
+    }
+}
+
+impl Rocket {
+    pub fn new(source: Entity) -> Self {
+        Self {
+            source: Some(source),
+            ..default()
         }
     }
 }
@@ -36,6 +49,12 @@ pub struct RocketTurret {
     pub left_offset: Vec3,
     pub right_offset: Vec3,
     pub speed: f32,
+}
+
+#[derive(Event)]
+pub struct RocketCollision {
+    pub entity: Entity,
+    pub rocket: Rocket,
 }
 
 fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFired) {
@@ -58,6 +77,10 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
         ..default()
     };
     let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
+    let collision_groups = CollisionGroups::new(
+        Group::from_bits(0b1000).unwrap(),
+        Group::from_bits(0b0100).unwrap(),
+    );
 
     commands.spawn((
         rocket.clone(),
@@ -67,6 +90,7 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
             ..default()
         },
         collider.clone(),
+        collision_groups.clone(),
     ));
 
     commands.spawn((
@@ -77,6 +101,7 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
             ..default()
         },
         collider.clone(),
+        collision_groups.clone(),
     ));
 }
 
@@ -136,18 +161,26 @@ pub fn despawn_rockets(
     for (entity, mut rocket) in &mut q_rockets {
         rocket.timer.tick(time.delta());
 
-        if rocket.timer.just_finished() {
+        if rocket.timer.just_finished() || rocket.disabled {
             commands.entity(entity).despawn_recursive();
         }
     }
 }
 
-pub fn test_intersections(
+pub fn check_rocket_collisions(
     rapier_context: Res<RapierContext>,
-    q_rockets: Query<(Entity, &Transform, &Rocket, &Collider)>,
+    mut q_rockets: Query<(Entity, &Transform, &mut Rocket, &Collider)>,
+    mut ev_rocket_collision: EventWriter<RocketCollision>,
 ) {
-    for (entity, transform, rocket, collider) in &q_rockets {
-        let filter = QueryFilter::default();
+    for (entity, transform, mut rocket, collider) in &mut q_rockets {
+        let filter = QueryFilter {
+            groups: Some(CollisionGroups::new(
+                Group::from_bits(0b1000).unwrap(),
+                Group::from_bits(0b0100).unwrap(),
+            )),
+            exclude_collider: Some(entity),
+            ..default()
+        };
 
         rapier_context.intersections_with_shape(
             transform.translation.truncate(),
@@ -155,11 +188,17 @@ pub fn test_intersections(
             collider,
             filter,
             |other| {
-                if other == entity {
-                    return true;
+                if let Some(source) = rocket.source {
+                    if source == other {
+                        return false;
+                    }
                 }
-                println!("Entity {:?} collided with {:?}", entity, other);
-                true // Return `false` instead if we want to stop searching for other colliders that contain this point.
+                ev_rocket_collision.send(RocketCollision {
+                    entity: other,
+                    rocket: rocket.clone(),
+                });
+                rocket.disabled = true;
+                false
             },
         );
     }

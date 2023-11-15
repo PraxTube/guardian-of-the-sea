@@ -7,6 +7,7 @@ use bevy_asset_loader::prelude::*;
 use bevy_rapier2d::prelude::*;
 use turret::{SpawnTurretsEvent, Turret};
 
+mod enemy;
 mod projectile;
 mod turret;
 mod utils;
@@ -27,6 +28,9 @@ pub struct GameAssets {
     pub ship: Handle<Image>,
     #[asset(path = "boat.png")]
     pub boat: Handle<Image>,
+
+    #[asset(path = "dummy_enemy.png")]
+    pub dummy_enemy: Handle<Image>,
 
     #[asset(path = "turret.png")]
     pub turret: Handle<Image>,
@@ -93,9 +97,10 @@ fn main() {
             RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
+            world::GuardianWorldPlugin,
             projectile::ProjectilePlugin,
             turret::TurretPlugin,
-            world::GuardianWorldPlugin,
+            enemy::GuardianEnemyPlugin,
         ))
         .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
         .init_resource::<MouseWorldCoords>()

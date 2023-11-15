@@ -15,11 +15,12 @@ impl Plugin for ProjectilePlugin {
                 rocket::fire_rockets,
                 rocket::move_rockets,
                 rocket::despawn_rockets,
-                rocket::test_intersections,
+                rocket::check_rocket_collisions,
             )
                 .chain()
                 .run_if(in_state(GameState::Gaming)),
         )
+        .add_event::<rocket::RocketCollision>()
         .add_event::<rocket::RocketFired>();
     }
 }
