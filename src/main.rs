@@ -40,6 +40,10 @@ pub struct GameAssets {
 
     #[asset(path = "rocket.png")]
     pub rocket: Handle<Image>,
+
+    #[asset(texture_atlas(tile_size_x = 32.0, tile_size_y = 32.0, columns = 8, rows = 1))]
+    #[asset(path = "gfx/explosion.png")]
+    pub explosion: Handle<TextureAtlas>,
 }
 
 #[derive(Component)]

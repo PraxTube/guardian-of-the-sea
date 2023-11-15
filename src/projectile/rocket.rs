@@ -5,8 +5,7 @@ use rand::prelude::*;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-//use crate::turret::Turret;
-use crate::{turret::Turret, GameAssets};
+use crate::{turret::Turret, GameAssets, GameState};
 
 const SPARY_INTENSITY: f32 = 0.05;
 
@@ -29,19 +28,14 @@ impl Default for Rocket {
     }
 }
 
-impl Rocket {
-    pub fn new(source: Entity) -> Self {
-        Self {
-            source: Some(source),
-            ..default()
-        }
-    }
-}
-
-#[derive(Event)]
-pub struct RocketFired {
-    rocket_turret: RocketTurret,
-}
+// impl Rocket {
+//     pub fn new(source: Entity) -> Self {
+//         Self {
+//             source: Some(source),
+//             ..default()
+//         }
+//     }
+// }
 
 pub struct RocketTurret {
     pub spawn_point: Vec3,
@@ -52,9 +46,19 @@ pub struct RocketTurret {
 }
 
 #[derive(Event)]
+pub struct RocketFired {
+    rocket_turret: RocketTurret,
+}
+
+#[derive(Event)]
 pub struct RocketCollision {
     pub entity: Entity,
     pub rocket: Rocket,
+}
+
+#[derive(Event)]
+pub struct RocketDespawn {
+    pub position: Vec3,
 }
 
 fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFired) {
@@ -105,7 +109,7 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
     ));
 }
 
-pub fn fire_rockets(
+fn fire_rockets(
     mut commands: Commands,
     assets: Res<GameAssets>,
     mut ev_rocket_fired: EventReader<RocketFired>,
@@ -115,7 +119,7 @@ pub fn fire_rockets(
     }
 }
 
-pub fn move_rockets(time: Res<Time>, mut rockets: Query<(&mut Transform, &Rocket)>) {
+fn move_rockets(time: Res<Time>, mut rockets: Query<(&mut Transform, &Rocket)>) {
     for (mut transform, rocket) in &mut rockets {
         let direction = transform.local_y();
         transform.translation += direction * rocket.current_speed * time.delta_seconds();
@@ -126,7 +130,7 @@ pub fn move_rockets(time: Res<Time>, mut rockets: Query<(&mut Transform, &Rocket
     }
 }
 
-pub fn shoot_rockets(
+fn shoot_rockets(
     keys: Res<Input<KeyCode>>,
     mut q_turrets: Query<(&mut Turret, &Transform)>,
     mut ev_rocket_fired: EventWriter<RocketFired>,
@@ -153,21 +157,25 @@ pub fn shoot_rockets(
     }
 }
 
-pub fn despawn_rockets(
+fn despawn_rockets(
     mut commands: Commands,
     time: Res<Time>,
-    mut q_rockets: Query<(Entity, &mut Rocket)>,
+    mut q_rockets: Query<(Entity, &Transform, &mut Rocket)>,
+    mut ev_rocket_despawn: EventWriter<RocketDespawn>,
 ) {
-    for (entity, mut rocket) in &mut q_rockets {
+    for (entity, transform, mut rocket) in &mut q_rockets {
         rocket.timer.tick(time.delta());
 
         if rocket.timer.just_finished() || rocket.disabled {
             commands.entity(entity).despawn_recursive();
+            ev_rocket_despawn.send(RocketDespawn {
+                position: transform.translation,
+            });
         }
     }
 }
 
-pub fn check_rocket_collisions(
+fn check_rocket_collisions(
     rapier_context: Res<RapierContext>,
     mut q_rockets: Query<(Entity, &Transform, &mut Rocket, &Collider)>,
     mut ev_rocket_collision: EventWriter<RocketCollision>,
@@ -201,5 +209,27 @@ pub fn check_rocket_collisions(
                 false
             },
         );
+    }
+}
+
+pub struct RocketPlugin;
+
+impl Plugin for RocketPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                shoot_rockets,
+                fire_rockets,
+                move_rockets,
+                despawn_rockets,
+                check_rocket_collisions,
+            )
+                .chain()
+                .run_if(in_state(GameState::Gaming)),
+        )
+        .add_event::<RocketFired>()
+        .add_event::<RocketCollision>()
+        .add_event::<RocketDespawn>();
     }
 }
