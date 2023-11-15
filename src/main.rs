@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow, Window, WindowMode};
 
 use bevy_asset_loader::prelude::*;
+use bevy_rapier2d::prelude::*;
 use turret::{SpawnTurretsEvent, Turret};
 
 mod projectile;
@@ -79,7 +80,7 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         present_mode: PresentMode::Fifo,
-                        mode: WindowMode::Fullscreen,
+                        mode: WindowMode::Windowed,
                         ..default()
                     }),
                     ..default()
@@ -88,6 +89,8 @@ fn main() {
                 .build(),
             FrameTimeDiagnosticsPlugin,
             LogDiagnosticsPlugin::default(),
+            RapierPhysicsPlugin::<NoUserData>::default(),
+            RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
             projectile::ProjectilePlugin,

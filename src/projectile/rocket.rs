@@ -3,6 +3,7 @@ use std::time::Duration;
 use rand::prelude::*;
 
 use bevy::prelude::*;
+use bevy_rapier2d::prelude::*;
 
 //use crate::turret::Turret;
 use crate::{turret::Turret, GameAssets};
@@ -56,6 +57,7 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
         current_speed: ev.rocket_turret.speed,
         ..default()
     };
+    let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 50.0), 50.0);
 
     commands.spawn((
         rocket.clone(),
@@ -64,6 +66,7 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
             texture: assets.rocket.clone(),
             ..default()
         },
+        collider.clone(),
     ));
 
     commands.spawn((
@@ -73,6 +76,7 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
             texture: assets.rocket.clone(),
             ..default()
         },
+        collider.clone(),
     ));
 }
 
@@ -135,5 +139,28 @@ pub fn despawn_rockets(
         if rocket.timer.just_finished() {
             commands.entity(entity).despawn_recursive();
         }
+    }
+}
+
+pub fn test_intersections(
+    rapier_context: Res<RapierContext>,
+    q_rockets: Query<(&Transform, &Rocket, &Collider)>,
+) {
+    for (transform, rocket, collider) in &q_rockets {
+        let filter = QueryFilter::default();
+
+        rapier_context.intersections_with_shape(
+            transform.translation.truncate(),
+            transform.rotation.to_euler(EulerRot::ZYX).0,
+            collider,
+            filter,
+            |entity| {
+                println!(
+                    "The entity {:?} intersects our shape.",
+                    q_rockets.get(entity).unwrap().1.current_speed
+                );
+                true // Return `false` instead if we want to stop searching for other colliders that contain this point.
+            },
+        );
     }
 }

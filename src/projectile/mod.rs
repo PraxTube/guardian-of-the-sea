@@ -15,6 +15,7 @@ impl Plugin for ProjectilePlugin {
                 rocket::fire_rockets,
                 rocket::move_rockets,
                 rocket::despawn_rockets,
+                rocket::test_intersections,
             )
                 .chain()
                 .run_if(in_state(GameState::Gaming)),
