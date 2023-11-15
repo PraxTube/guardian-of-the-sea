@@ -57,7 +57,7 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
         current_speed: ev.rocket_turret.speed,
         ..default()
     };
-    let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 50.0), 50.0);
+    let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
 
     commands.spawn((
         rocket.clone(),
@@ -144,9 +144,9 @@ pub fn despawn_rockets(
 
 pub fn test_intersections(
     rapier_context: Res<RapierContext>,
-    q_rockets: Query<(&Transform, &Rocket, &Collider)>,
+    q_rockets: Query<(Entity, &Transform, &Rocket, &Collider)>,
 ) {
-    for (transform, rocket, collider) in &q_rockets {
+    for (entity, transform, rocket, collider) in &q_rockets {
         let filter = QueryFilter::default();
 
         rapier_context.intersections_with_shape(
@@ -154,11 +154,11 @@ pub fn test_intersections(
             transform.rotation.to_euler(EulerRot::ZYX).0,
             collider,
             filter,
-            |entity| {
-                println!(
-                    "The entity {:?} intersects our shape.",
-                    q_rockets.get(entity).unwrap().1.current_speed
-                );
+            |other| {
+                if other == entity {
+                    return true;
+                }
+                println!("Entity {:?} collided with {:?}", entity, other);
                 true // Return `false` instead if we want to stop searching for other colliders that contain this point.
             },
         );
