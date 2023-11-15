@@ -13,6 +13,7 @@ const SPARY_INTENSITY: f32 = 0.05;
 pub struct Rocket {
     source: Option<Entity>,
     current_speed: f32,
+    pub damage: f32,
     timer: Timer,
     disabled: bool,
 }
@@ -22,6 +23,7 @@ impl Default for Rocket {
         Self {
             source: None,
             current_speed: 0.0,
+            damage: 1.0,
             timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Once),
             disabled: false,
         }
@@ -181,6 +183,10 @@ fn check_rocket_collisions(
     mut ev_rocket_collision: EventWriter<RocketCollision>,
 ) {
     for (entity, transform, mut rocket, collider) in &mut q_rockets {
+        if rocket.disabled {
+            continue;
+        }
+
         let filter = QueryFilter {
             groups: Some(CollisionGroups::new(
                 Group::from_bits(0b1000).unwrap(),

@@ -1,4 +1,4 @@
-mod rocket;
+pub mod rocket;
 mod rocket_explosion;
 
 use bevy::prelude::*;

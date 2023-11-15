@@ -10,6 +10,7 @@ use turret::{SpawnTurretsEvent, Turret};
 mod enemy;
 mod projectile;
 mod turret;
+mod ui;
 mod utils;
 mod world;
 
@@ -102,6 +103,7 @@ fn main() {
         ))
         .add_plugins((
             world::GuardianWorldPlugin,
+            ui::GuardianUiPlugin,
             projectile::ProjectilePlugin,
             turret::TurretPlugin,
             enemy::GuardianEnemyPlugin,
