@@ -23,6 +23,7 @@ impl Plugin for TurretPlugin {
                 update_enemy_turret_targets.before(rotate_turrets),
                 rotate_turrets.after(fetch_mouse_world_coords),
                 cooldown_turrets,
+                despawn_turrets,
             )
                 .run_if(in_state(GameState::Gaming)),
         )
@@ -46,7 +47,7 @@ impl Default for Turret {
             target_direction: Vec2::default(),
             offset: Vec3::default(),
             cooling_down: false,
-            cooldown_timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Repeating),
+            cooldown_timer: Timer::new(Duration::from_secs_f32(1.0), TimerMode::Repeating),
         }
     }
 }
@@ -166,6 +167,23 @@ fn cooldown_turrets(time: Res<Time>, mut q_turrets: Query<&mut Turret>) {
 
         if turret.cooldown_timer.just_finished() {
             turret.cooling_down = false;
+        }
+    }
+}
+
+fn despawn_turrets(
+    mut commands: Commands,
+    q_transforms: Query<&Transform, Without<Turret>>,
+    q_turrets: Query<(Entity, &Turret)>,
+) {
+    for (entity, turret) in &q_turrets {
+        match turret.source {
+            Some(s) => {
+                if q_transforms.get(s).is_err() {
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+            None => commands.entity(entity).despawn_recursive(),
         }
     }
 }

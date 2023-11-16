@@ -5,7 +5,7 @@ use rand::prelude::*;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{turret::Turret, GameAssets, GameState};
+use crate::{enemy::Enemy, player::Player, turret::Turret, GameAssets, GameState};
 
 const SPARY_INTENSITY: f32 = 0.05;
 
@@ -131,20 +131,28 @@ fn move_rockets(time: Res<Time>, mut rockets: Query<(&mut Transform, &Rocket)>) 
     }
 }
 
-fn shoot_rockets(
+fn shoot_player_rockets(
     keys: Res<Input<KeyCode>>,
     mut q_turrets: Query<(&mut Turret, &Transform)>,
+    q_player: Query<Entity, With<Player>>,
     mut ev_rocket_fired: EventWriter<RocketFired>,
 ) {
     if !keys.pressed(KeyCode::Space) {
         return;
     }
 
+    let player = match q_player.get_single() {
+        Ok(p) => p,
+        Err(err) => {
+            error!("there should be exactly on player, {}", err);
+            return;
+        }
+    };
+
     for (mut turret, transform) in &mut q_turrets {
         if turret.cooling_down {
             continue;
         }
-        turret.cooling_down = true;
 
         let source = match turret.source {
             Some(s) => s,
@@ -153,6 +161,10 @@ fn shoot_rockets(
                 continue;
             }
         };
+
+        if source != player {
+            continue;
+        }
 
         ev_rocket_fired.send(RocketFired {
             source,
@@ -163,7 +175,44 @@ fn shoot_rockets(
                 right_offset: Vec3::new(-5.0, 5.0, 0.0),
                 speed: 1000.0,
             },
-        })
+        });
+        turret.cooling_down = true;
+    }
+}
+
+fn shoot_enemy_rockets(
+    mut q_turrets: Query<(&mut Turret, &Transform)>,
+    q_enemies: Query<Entity, With<Enemy>>,
+    mut ev_rocket_fired: EventWriter<RocketFired>,
+) {
+    for (mut turret, transform) in &mut q_turrets {
+        if turret.cooling_down {
+            continue;
+        }
+
+        let source = match turret.source {
+            Some(s) => s,
+            None => {
+                error!("the shooting turret does not have a source");
+                continue;
+            }
+        };
+
+        if q_enemies.get(source).is_err() {
+            continue;
+        }
+
+        ev_rocket_fired.send(RocketFired {
+            source,
+            rocket_turret: RocketTurret {
+                spawn_point: transform.translation,
+                spawn_rotation: transform.rotation,
+                left_offset: Vec3::new(5.0, 5.0, 0.0),
+                right_offset: Vec3::new(-5.0, 5.0, 0.0),
+                speed: 1000.0,
+            },
+        });
+        turret.cooling_down = true;
     }
 }
 
@@ -233,7 +282,8 @@ impl Plugin for RocketPlugin {
         app.add_systems(
             Update,
             (
-                shoot_rockets,
+                shoot_player_rockets,
+                shoot_enemy_rockets,
                 fire_rockets,
                 move_rockets,
                 despawn_rockets,

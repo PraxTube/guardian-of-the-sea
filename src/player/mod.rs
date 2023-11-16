@@ -103,7 +103,7 @@ fn spawn_player_big(
     });
     ev_spawn_health.send(SpawnHealth {
         entity,
-        health: Health::new(entity, 10.0, ship_stats),
+        health: Health::new(entity, 10000.0, ship_stats),
     });
 }
 
