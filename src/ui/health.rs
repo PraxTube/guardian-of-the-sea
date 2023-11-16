@@ -1,23 +1,22 @@
 use bevy::prelude::*;
 
-use crate::GameState;
-
-const HEALTH_BAR_OFFSET: Vec3 = Vec3::new(-30.0, -40.0, 0.0);
-const HEALTH_BAR_SCALE: Vec3 = Vec3::new(60.0, 7.5, 1.0);
+use crate::{GameState, ShipStats};
 
 #[derive(Component, Clone)]
 pub struct Health {
     pub entity: Entity,
     pub health: f32,
     pub max_health: f32,
+    pub ship_stats: ShipStats,
 }
 
 impl Health {
-    pub fn new(entity: Entity, max_health: f32) -> Self {
+    pub fn new(entity: Entity, max_health: f32, ship_stats: ShipStats) -> Self {
         Self {
             entity,
             health: max_health,
             max_health,
+            ship_stats,
         }
     }
 }
@@ -46,7 +45,8 @@ pub fn move_health_bars(
                 continue;
             }
 
-            health_bar_transform.translation = health_transform.translation + HEALTH_BAR_OFFSET;
+            health_bar_transform.translation =
+                health_transform.translation + health.ship_stats.health_bar_offset;
         }
     }
 }
@@ -92,21 +92,28 @@ pub fn fill_health_bars(
     }
 }
 
-fn spawn_container(commands: &mut Commands, spawn_position: Vec3, entity: Entity) -> Entity {
+fn spawn_container(
+    commands: &mut Commands,
+    spawn_position: Vec3,
+    entity: Entity,
+    ship_stats: &ShipStats,
+) -> Entity {
     commands
         .spawn((
             HealthBar { entity },
             SpatialBundle {
-                transform: Transform::from_translation(spawn_position + HEALTH_BAR_OFFSET),
+                transform: Transform::from_translation(
+                    spawn_position + ship_stats.health_bar_offset,
+                ),
                 ..default()
             },
         ))
         .id()
 }
 
-fn spawn_background(commands: &mut Commands) -> Entity {
-    let transform = Transform::from_scale(HEALTH_BAR_SCALE).with_translation(Vec3::new(
-        HEALTH_BAR_SCALE.x / 2.0,
+fn spawn_background(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
+    let transform = Transform::from_scale(ship_stats.health_bar_scale).with_translation(Vec3::new(
+        ship_stats.health_bar_scale.x / 2.0,
         0.0,
         10.0,
     ));
@@ -129,9 +136,9 @@ fn spawn_fill_container(commands: &mut Commands) -> Entity {
         .id()
 }
 
-fn spawn_fill(commands: &mut Commands) -> Entity {
-    let transform = Transform::from_scale(HEALTH_BAR_SCALE).with_translation(Vec3::new(
-        HEALTH_BAR_SCALE.x / 2.0,
+fn spawn_fill(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
+    let transform = Transform::from_scale(ship_stats.health_bar_scale).with_translation(Vec3::new(
+        ship_stats.health_bar_scale.x / 2.0,
         0.0,
         20.0,
     ));
@@ -153,10 +160,15 @@ pub fn spawn_health_bars(mut commands: Commands, mut ev_spawn_health: EventReade
         if let Some(mut entity) = commands.get_entity(ev.entity) {
             entity.insert(ev.health.clone());
 
-            let container = spawn_container(&mut commands, Vec3::default(), ev.entity);
-            let background = spawn_background(&mut commands);
+            let container = spawn_container(
+                &mut commands,
+                Vec3::default(),
+                ev.entity,
+                &ev.health.ship_stats,
+            );
+            let background = spawn_background(&mut commands, &ev.health.ship_stats);
             let fill_container = spawn_fill_container(&mut commands);
-            let fill = spawn_fill(&mut commands);
+            let fill = spawn_fill(&mut commands, &ev.health.ship_stats);
 
             commands.entity(fill_container).push_children(&[fill]);
             commands

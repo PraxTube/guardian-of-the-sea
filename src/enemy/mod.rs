@@ -4,7 +4,7 @@ use bevy_rapier2d::prelude::*;
 use crate::{
     projectile::rocket::RocketCollision,
     ui::health::{Health, SpawnHealth},
-    GameAssets, GameState,
+    GameAssets, GameState, ShipStats,
 };
 
 pub struct GuardianEnemyPlugin;
@@ -29,6 +29,7 @@ fn spawn_dummy_enemy(
 ) {
     let transform = Transform::from_translation(Vec3::new(500.0, 500.0, 0.0));
     let collider = Collider::capsule(Vec2::new(0.0, -20.0), Vec2::new(0.0, 20.0), 15.0);
+    let ship_stats = ShipStats::default();
 
     let entity = commands
         .spawn((
@@ -47,7 +48,7 @@ fn spawn_dummy_enemy(
         .id();
     ev_spawn_health.send(SpawnHealth {
         entity,
-        health: Health::new(entity, 100.0),
+        health: Health::new(entity, 100.0, ship_stats),
     })
 }
 

@@ -14,6 +14,7 @@ mod ui;
 mod utils;
 mod world;
 
+use ui::health::{Health, SpawnHealth};
 use world::MainCamera;
 
 #[derive(States, Clone, Eq, PartialEq, Debug, Hash, Default)]
@@ -52,7 +53,7 @@ pub struct Player {
     active_momentum: bool,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct ShipStats {
     delta_steering: f32,
     delta_speed: f32,
@@ -60,6 +61,9 @@ pub struct ShipStats {
 
     min_speed: f32,
     max_speed: f32,
+
+    health_bar_offset: Vec3,
+    health_bar_scale: Vec3,
 }
 
 #[derive(Resource, Default)]
@@ -73,6 +77,8 @@ impl Default for ShipStats {
             current_speed: 0.0,
             min_speed: -150.0,
             max_speed: 500.0,
+            health_bar_offset: Vec3::new(-30.0, -40.0, 0.0),
+            health_bar_scale: Vec3::new(60.0, 7.5, 1.0),
         }
     }
 }
@@ -139,40 +145,54 @@ fn spawn_player_small(
     mut commands: Commands,
     assets: Res<GameAssets>,
     mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
+    mut ev_spawn_health: EventWriter<SpawnHealth>,
 ) {
-    commands.spawn((
-        Player {
-            active_momentum: true,
-        },
-        ShipStats::default(),
-        SpriteBundle {
-            texture: assets.ship.clone(),
-            ..default()
-        },
-    ));
+    let ship_stats = ShipStats::default();
+    let entity = commands
+        .spawn((
+            Player {
+                active_momentum: true,
+            },
+            ship_stats.clone(),
+            SpriteBundle {
+                texture: assets.ship.clone(),
+                ..default()
+            },
+        ))
+        .id();
     ev_spawn_turrets.send(SpawnTurretsEvent {
         turrets: vec![Turret::default()],
-    })
+    });
+    ev_spawn_health.send(SpawnHealth {
+        entity,
+        health: Health::new(entity, 100.0, ship_stats),
+    });
 }
 
 fn spawn_player_big(
     mut commands: Commands,
     assets: Res<GameAssets>,
     mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
+    mut ev_spawn_health: EventWriter<SpawnHealth>,
 ) {
     let mut ship_stats = ShipStats::default();
     ship_stats.delta_speed *= 0.75;
     ship_stats.delta_steering *= 0.5;
-    commands.spawn((
-        Player {
-            active_momentum: true,
-        },
-        ship_stats,
-        SpriteBundle {
-            texture: assets.boat.clone(),
-            ..default()
-        },
-    ));
+    ship_stats.health_bar_offset *= 4.0;
+    ship_stats.health_bar_scale *= 4.0;
+
+    let entity = commands
+        .spawn((
+            Player {
+                active_momentum: true,
+            },
+            ship_stats.clone(),
+            SpriteBundle {
+                texture: assets.boat.clone(),
+                ..default()
+            },
+        ))
+        .id();
     ev_spawn_turrets.send(SpawnTurretsEvent {
         turrets: vec![
             Turret::new(Vec2::new(16.0, 16.0)),
@@ -182,7 +202,11 @@ fn spawn_player_big(
             Turret::new(Vec2::new(-16.0, 48.0)),
             Turret::new(Vec2::new(16.0, 48.0)),
         ],
-    })
+    });
+    ev_spawn_health.send(SpawnHealth {
+        entity,
+        health: Health::new(entity, 1000.0, ship_stats),
+    });
 }
 
 fn fetch_mouse_world_coords(
