@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    projectile::rocket::RocketCollision,
+    turret::{SpawnTurretsEvent, Turret},
     ui::health::{Health, SpawnHealth},
     GameAssets, GameState, ShipStats,
 };
@@ -13,7 +13,7 @@ impl Plugin for GuardianEnemyPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (damage_enemies, despawn_enemies).run_if(in_state(GameState::Gaming)),
+            (despawn_enemies).run_if(in_state(GameState::Gaming)),
         )
         .add_systems(OnEnter(GameState::Gaming), spawn_dummy_enemy);
     }
@@ -25,6 +25,7 @@ pub struct Enemy;
 fn spawn_dummy_enemy(
     mut commands: Commands,
     assets: Res<GameAssets>,
+    mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
     mut ev_spawn_health: EventWriter<SpawnHealth>,
 ) {
     let transform = Transform::from_translation(Vec3::new(500.0, 500.0, 0.0));
@@ -46,22 +47,13 @@ fn spawn_dummy_enemy(
             },
         ))
         .id();
+    ev_spawn_turrets.send(SpawnTurretsEvent {
+        turrets: vec![Turret::new(entity, Vec2::default())],
+    });
     ev_spawn_health.send(SpawnHealth {
         entity,
         health: Health::new(entity, 100.0, ship_stats),
     })
-}
-
-fn damage_enemies(
-    mut q_enemies: Query<&mut Health, With<Enemy>>,
-    mut ev_rocket_collision: EventReader<RocketCollision>,
-) {
-    for ev in ev_rocket_collision.read() {
-        if let Ok(mut health) = q_enemies.get_mut(ev.entity) {
-            info!("Damagin enemy: {:?}", health.health);
-            health.health -= ev.rocket.damage;
-        }
-    }
 }
 
 fn despawn_enemies(mut commands: Commands, q_enemies: Query<(Entity, &Health)>) {
@@ -71,3 +63,7 @@ fn despawn_enemies(mut commands: Commands, q_enemies: Query<(Entity, &Health)>) 
         }
     }
 }
+
+fn aim_enemy_turrets() {}
+
+fn shoot_enemy_turrets() {}

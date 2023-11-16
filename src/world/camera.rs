@@ -2,7 +2,9 @@ use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy::window::{PrimaryWindow, WindowMode};
 
-use crate::{move_ships, GameState, MouseWorldCoords, Player};
+use crate::player::input::{fetch_mouse_world_coords, MouseWorldCoords};
+use crate::player::Player;
+use crate::{move_ships, GameState};
 
 pub struct GuardianCameraPlugin;
 
@@ -12,6 +14,7 @@ impl Plugin for GuardianCameraPlugin {
             Update,
             move_camera
                 .after(move_ships)
+                .after(fetch_mouse_world_coords)
                 .run_if(in_state(GameState::Gaming)),
         )
         .add_systems(OnEnter(GameState::Gaming), (spawn_camera,))
@@ -36,8 +39,14 @@ fn move_camera(
     q_player: Query<&Transform, With<Player>>,
     mouse_coords: Res<MouseWorldCoords>,
 ) {
+    let player_pos = match q_player.get_single() {
+        Ok(player) => player.translation,
+        Err(err) => {
+            error!("no player! cannot move camera, {}", err);
+            return;
+        }
+    };
     let (mut camera_transform, projection) = q_camera.single_mut();
-    let player_pos = q_player.single().translation;
 
     camera_transform.translation =
         player_pos + (mouse_coords.0.extend(0.0) - player_pos) / 4.0 / projection.scale;

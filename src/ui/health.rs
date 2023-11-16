@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{GameState, ShipStats};
+use crate::{projectile::rocket::RocketCollision, GameState, ShipStats};
 
 #[derive(Component, Clone)]
 pub struct Health {
@@ -22,12 +22,12 @@ impl Health {
 }
 
 #[derive(Component)]
-pub struct HealthBar {
-    pub entity: Entity,
+struct HealthBar {
+    entity: Entity,
 }
 
 #[derive(Component)]
-pub struct HealthBarFill;
+struct HealthBarFill;
 
 #[derive(Event)]
 pub struct SpawnHealth {
@@ -35,7 +35,7 @@ pub struct SpawnHealth {
     pub health: Health,
 }
 
-pub fn move_health_bars(
+fn move_health_bars(
     mut health_bars: Query<(&HealthBar, &mut Transform), (Without<Health>, Without<HealthBarFill>)>,
     healths: Query<(&Transform, &Health), Without<HealthBar>>,
 ) {
@@ -68,7 +68,7 @@ fn fill_health_bar(
     }
 }
 
-pub fn fill_health_bars(
+fn fill_health_bars(
     mut health_bars: Query<
         (&HealthBar, &Children, &mut Visibility),
         (Without<Health>, Without<HealthBarFill>),
@@ -155,7 +155,7 @@ fn spawn_fill(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
         .id()
 }
 
-pub fn spawn_health_bars(mut commands: Commands, mut ev_spawn_health: EventReader<SpawnHealth>) {
+fn spawn_health_bars(mut commands: Commands, mut ev_spawn_health: EventReader<SpawnHealth>) {
     for ev in ev_spawn_health.read() {
         if let Some(mut entity) = commands.get_entity(ev.entity) {
             entity.insert(ev.health.clone());
@@ -178,13 +178,29 @@ pub fn spawn_health_bars(mut commands: Commands, mut ev_spawn_health: EventReade
     }
 }
 
+fn apply_rocket_damage(
+    mut q_healths: Query<&mut Health>,
+    mut ev_rocket_collision: EventReader<RocketCollision>,
+) {
+    for ev in ev_rocket_collision.read() {
+        if let Ok(mut health) = q_healths.get_mut(ev.entity) {
+            health.health -= ev.rocket.damage;
+        }
+    }
+}
+
 pub struct HealthPlugin;
 
 impl Plugin for HealthPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (move_health_bars, fill_health_bars, spawn_health_bars)
+            (
+                move_health_bars,
+                fill_health_bars,
+                spawn_health_bars,
+                apply_rocket_damage,
+            )
                 .run_if(in_state(GameState::Gaming)),
         )
         .add_event::<SpawnHealth>();

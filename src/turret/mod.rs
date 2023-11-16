@@ -2,10 +2,9 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
+use crate::player::input::{fetch_mouse_world_coords, MouseWorldCoords};
 use crate::utils::quat_from_vec2;
-use crate::{
-    fetch_mouse_world_coords, move_ships, GameAssets, GameState, MouseWorldCoords, Player,
-};
+use crate::{move_ships, GameAssets, GameState};
 
 const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
 
@@ -29,6 +28,7 @@ impl Plugin for TurretPlugin {
 
 #[derive(Component, Clone)]
 pub struct Turret {
+    pub source: Option<Entity>,
     pub offset: Vec3,
     pub cooling_down: bool,
     pub cooldown_timer: Timer,
@@ -37,6 +37,7 @@ pub struct Turret {
 impl Default for Turret {
     fn default() -> Self {
         Self {
+            source: None,
             offset: Vec3::default(),
             cooling_down: false,
             cooldown_timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Repeating),
@@ -45,8 +46,9 @@ impl Default for Turret {
 }
 
 impl Turret {
-    pub fn new(offset: Vec2) -> Self {
+    pub fn new(source: Entity, offset: Vec2) -> Self {
         Self {
+            source: Some(source),
             offset: offset.extend(0.0),
             ..default()
         }
@@ -77,13 +79,20 @@ fn spawn_turrets(
 }
 
 fn reposition_turrets(
-    mut turrets: Query<(&mut Transform, &Turret), Without<Player>>,
-    q_player: Query<&Transform, With<Player>>,
+    mut q_turrets: Query<(&mut Transform, &Turret)>,
+    q_transforms: Query<&Transform, Without<Turret>>,
 ) {
-    let player_transform = q_player.single();
-    for (mut turret_transform, turret) in &mut turrets {
-        turret_transform.translation = player_transform.translation
-            + player_transform.rotation.mul_vec3(turret.offset)
+    for (mut turret_transform, turret) in &mut q_turrets {
+        let source = match turret.source {
+            Some(s) => s,
+            None => continue,
+        };
+        let source_transform = match q_transforms.get(source) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        turret_transform.translation = source_transform.translation
+            + source_transform.rotation.mul_vec3(turret.offset)
             + TURRET_Z_OFFSET;
     }
 }

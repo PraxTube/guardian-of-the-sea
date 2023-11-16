@@ -30,14 +30,15 @@ impl Default for Rocket {
     }
 }
 
-// impl Rocket {
-//     pub fn new(source: Entity) -> Self {
-//         Self {
-//             source: Some(source),
-//             ..default()
-//         }
-//     }
-// }
+impl Rocket {
+    pub fn new(source: Entity, current_speed: f32) -> Self {
+        Self {
+            source: Some(source),
+            current_speed,
+            ..default()
+        }
+    }
+}
 
 pub struct RocketTurret {
     pub spawn_point: Vec3,
@@ -49,6 +50,7 @@ pub struct RocketTurret {
 
 #[derive(Event)]
 pub struct RocketFired {
+    source: Entity,
     rocket_turret: RocketTurret,
 }
 
@@ -78,10 +80,7 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
                 .mul_vec3(ev.rocket_turret.right_offset),
     )
     .with_rotation(ev.rocket_turret.spawn_rotation);
-    let rocket = Rocket {
-        current_speed: ev.rocket_turret.speed,
-        ..default()
-    };
+    let rocket = Rocket::new(ev.source, ev.rocket_turret.speed);
     let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
     let collision_groups = CollisionGroups::new(
         Group::from_bits(0b1000).unwrap(),
@@ -147,7 +146,16 @@ fn shoot_rockets(
         }
         turret.cooling_down = true;
 
+        let source = match turret.source {
+            Some(s) => s,
+            None => {
+                error!("the shooting turret does not have a source");
+                continue;
+            }
+        };
+
         ev_rocket_fired.send(RocketFired {
+            source,
             rocket_turret: RocketTurret {
                 spawn_point: transform.translation,
                 spawn_rotation: transform.rotation,
