@@ -3,6 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::player::input::{fetch_mouse_world_coords, MouseWorldCoords};
+use crate::player::Player;
 use crate::utils::quat_from_vec2;
 use crate::{move_ships, GameAssets, GameState};
 
@@ -17,6 +18,7 @@ impl Plugin for TurretPlugin {
             (
                 spawn_turrets,
                 reposition_turrets.after(move_ships),
+                update_player_turret_targets.before(rotate_turrets),
                 rotate_turrets.after(fetch_mouse_world_coords),
                 cooldown_turrets,
             )
@@ -29,6 +31,7 @@ impl Plugin for TurretPlugin {
 #[derive(Component, Clone)]
 pub struct Turret {
     pub source: Option<Entity>,
+    pub target: Vec2,
     pub offset: Vec3,
     pub cooling_down: bool,
     pub cooldown_timer: Timer,
@@ -38,6 +41,7 @@ impl Default for Turret {
     fn default() -> Self {
         Self {
             source: None,
+            target: Vec2::default(),
             offset: Vec3::default(),
             cooling_down: false,
             cooldown_timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Repeating),
@@ -97,13 +101,30 @@ fn reposition_turrets(
     }
 }
 
-fn rotate_turrets(
-    mut turrets: Query<&mut Transform, With<Turret>>,
+fn rotate_turrets(mut turrets: Query<(&mut Transform, &Turret)>) {
+    for (mut transform, turret) in &mut turrets {
+        transform.rotation = quat_from_vec2(turret.target);
+    }
+}
+
+fn update_player_turret_targets(
+    mut turrets: Query<(&Transform, &mut Turret)>,
+    q_player: Query<Entity, With<Player>>,
     mouse_coords: Res<MouseWorldCoords>,
 ) {
-    for mut turret in &mut turrets {
-        turret.rotation =
-            quat_from_vec2(-1.0 * (mouse_coords.0 - turret.translation.truncate()).perp());
+    let player = match q_player.get_single() {
+        Ok(p) => p,
+        Err(err) => {
+            error!("not exactly one player, {}", err);
+            return;
+        }
+    };
+
+    for (transform, mut turret) in &mut turrets {
+        if turret.source != Some(player) {
+            continue;
+        }
+        turret.target = -1.0 * (mouse_coords.0 - transform.translation.truncate()).perp();
     }
 }
 
