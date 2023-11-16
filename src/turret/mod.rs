@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
+use crate::enemy::Enemy;
 use crate::player::input::{fetch_mouse_world_coords, MouseWorldCoords};
 use crate::player::Player;
 use crate::utils::quat_from_vec2;
@@ -19,6 +20,7 @@ impl Plugin for TurretPlugin {
                 spawn_turrets,
                 reposition_turrets.after(move_ships),
                 update_player_turret_targets.before(rotate_turrets),
+                update_enemy_turret_targets.before(rotate_turrets),
                 rotate_turrets.after(fetch_mouse_world_coords),
                 cooldown_turrets,
             )
@@ -31,7 +33,7 @@ impl Plugin for TurretPlugin {
 #[derive(Component, Clone)]
 pub struct Turret {
     pub source: Option<Entity>,
-    pub target: Vec2,
+    pub target_direction: Vec2,
     pub offset: Vec3,
     pub cooling_down: bool,
     pub cooldown_timer: Timer,
@@ -41,7 +43,7 @@ impl Default for Turret {
     fn default() -> Self {
         Self {
             source: None,
-            target: Vec2::default(),
+            target_direction: Vec2::default(),
             offset: Vec3::default(),
             cooling_down: false,
             cooldown_timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Repeating),
@@ -103,7 +105,7 @@ fn reposition_turrets(
 
 fn rotate_turrets(mut turrets: Query<(&mut Transform, &Turret)>) {
     for (mut transform, turret) in &mut turrets {
-        transform.rotation = quat_from_vec2(turret.target);
+        transform.rotation = quat_from_vec2(turret.target_direction);
     }
 }
 
@@ -124,7 +126,33 @@ fn update_player_turret_targets(
         if turret.source != Some(player) {
             continue;
         }
-        turret.target = -1.0 * (mouse_coords.0 - transform.translation.truncate()).perp();
+        turret.target_direction = -1.0 * (mouse_coords.0 - transform.translation.truncate()).perp();
+    }
+}
+
+fn update_enemy_turret_targets(
+    mut turrets: Query<(&Transform, &mut Turret)>,
+    q_player: Query<&Transform, With<Player>>,
+    q_enemies: Query<Entity, With<Enemy>>,
+) {
+    let player_transform = match q_player.get_single() {
+        Ok(p) => p,
+        Err(err) => {
+            error!("not exactly one player, {}", err);
+            return;
+        }
+    };
+
+    for (transform, mut turret) in &mut turrets {
+        let source = match turret.source {
+            Some(s) => s,
+            None => continue,
+        };
+        if q_enemies.get(source).is_err() {
+            continue;
+        }
+        turret.target_direction = -1.0
+            * (player_transform.translation.truncate() - transform.translation.truncate()).perp();
     }
 }
 

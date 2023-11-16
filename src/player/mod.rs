@@ -76,7 +76,7 @@ fn spawn_player_big(
     ship_stats.delta_steering *= 0.5;
     ship_stats.health_bar_offset *= 4.0;
     ship_stats.health_bar_scale *= 4.0;
-    let collider = Collider::capsule(Vec2::new(0.0, -100.0), Vec2::new(0.0, 100.0), 40.0);
+    let collider = Collider::capsule(Vec2::new(0.0, -90.0), Vec2::new(0.0, 90.0), 40.0);
 
     let entity = commands
         .spawn((
