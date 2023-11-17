@@ -7,6 +7,7 @@ use crate::player::input::{fetch_mouse_world_coords, MouseWorldCoords};
 use crate::player::Player;
 use crate::utils::quat_from_vec2;
 use crate::vessel::ship::{move_ships, steer_ships};
+use crate::vessel::SpawnVessel;
 use crate::{GameAssets, GameState};
 
 const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
@@ -26,7 +27,6 @@ impl Plugin for TurretPlugin {
                 .chain()
                 .run_if(in_state(GameState::Gaming)),
         )
-        .add_event::<SpawnTurretsEvent>()
         .add_systems(
             Update,
             (spawn_turrets, cooldown_turrets, despawn_turrets).run_if(in_state(GameState::Gaming)),
@@ -65,15 +65,10 @@ impl Turret {
     }
 }
 
-#[derive(Event)]
-pub struct SpawnTurretsEvent {
-    pub turrets: Vec<Turret>,
-}
-
 fn spawn_turrets(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    mut ev_spawn_turrets: EventReader<SpawnTurretsEvent>,
+    mut ev_spawn_turrets: EventReader<SpawnVessel>,
 ) {
     for ev in ev_spawn_turrets.read() {
         for turret in &ev.turrets {

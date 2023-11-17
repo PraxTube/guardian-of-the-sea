@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{projectile::rocket::RocketCollision, GameState, ShipStats};
+use crate::{projectile::rocket::RocketCollision, vessel::SpawnVessel, GameState, ShipStats};
 
 #[derive(Component, Clone)]
 pub struct Health {
@@ -28,12 +28,6 @@ struct HealthBar {
 
 #[derive(Component)]
 struct HealthBarFill;
-
-#[derive(Event, Clone)]
-pub struct SpawnHealth {
-    pub entity: Entity,
-    pub health: Health,
-}
 
 fn move_health_bars(
     mut health_bars: Query<(&HealthBar, &mut Transform), (Without<Health>, Without<HealthBarFill>)>,
@@ -155,7 +149,7 @@ fn spawn_fill(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
         .id()
 }
 
-fn spawn_health_bar(commands: &mut Commands, ev: SpawnHealth) {
+fn spawn_health_bar(commands: &mut Commands, ev: SpawnVessel) {
     let container = spawn_container(commands, Vec3::ZERO, ev.entity, &ev.health.ship_stats);
     let background = spawn_background(commands, &ev.health.ship_stats);
     let fill_container = spawn_fill_container(commands);
@@ -170,7 +164,7 @@ fn spawn_health_bar(commands: &mut Commands, ev: SpawnHealth) {
 fn spawn_health_bars(
     mut commands: Commands,
     q_ship_stats: Query<&ShipStats>,
-    mut ev_spawn_health: EventReader<SpawnHealth>,
+    mut ev_spawn_health: EventReader<SpawnVessel>,
 ) {
     for ev in ev_spawn_health.read() {
         if let Some(mut entity) = commands.get_entity(ev.entity) {
@@ -208,7 +202,6 @@ impl Plugin for HealthPlugin {
                 apply_rocket_damage,
             )
                 .run_if(in_state(GameState::Gaming)),
-        )
-        .add_event::<SpawnHealth>();
+        );
     }
 }

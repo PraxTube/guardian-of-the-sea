@@ -3,9 +3,9 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{
     player::Player,
-    turret::{SpawnTurretsEvent, Turret},
-    ui::health::{Health, SpawnHealth},
-    vessel::ship::SmallShip1,
+    turret::Turret,
+    ui::health::Health,
+    vessel::{ship::SmallShip1, SpawnVessel},
     GameAssets, GameState, ShipStats,
 };
 
@@ -39,8 +39,7 @@ pub struct Enemy {
 fn spawn_dummy_enemy(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
-    mut ev_spawn_health: EventWriter<SpawnHealth>,
+    mut ev_spawn_vessel: EventWriter<SpawnVessel>,
 ) {
     let transform = Transform::from_translation(Vec3::new(500.0, 500.0, 0.0));
     let entity = commands
@@ -54,13 +53,11 @@ fn spawn_dummy_enemy(
         ))
         .insert(transform)
         .id();
-    ev_spawn_turrets.send(SpawnTurretsEvent {
-        turrets: vec![Turret::new(entity, Vec2::default())],
-    });
-    ev_spawn_health.send(SpawnHealth {
+    ev_spawn_vessel.send(SpawnVessel {
         entity,
+        turrets: vec![Turret::new(entity, Vec2::default())],
         health: Health::new(entity, 100.0),
-    })
+    });
 }
 
 fn despawn_enemies(mut commands: Commands, q_enemies: Query<(Entity, &Health)>) {
@@ -103,11 +100,14 @@ fn steer_enemies(mut q_enemies: Query<(&Transform, &mut ShipStats, &Enemy)>) {
         let angle = enemy
             .target_point
             .angle_between(transform.local_y().truncate());
-        if angle.abs() <= MIN_ANGLE_THRESHOLD {
-            continue;
-        }
+        let steer_direction = if angle.abs() <= MIN_ANGLE_THRESHOLD {
+            0.0
+        } else if angle < 0.0 {
+            1.0
+        } else {
+            -1.0
+        };
 
-        let steer_direction = if angle < 0.0 { 1.0 } else { -1.0 };
         ship_stats.current_steering_direction = steer_direction;
     }
 }

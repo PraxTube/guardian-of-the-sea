@@ -2,9 +2,10 @@ pub mod input;
 
 use bevy::prelude::*;
 
-use crate::turret::{SpawnTurretsEvent, Turret};
-use crate::ui::health::{Health, SpawnHealth};
+use crate::turret::Turret;
+use crate::ui::health::Health;
 use crate::vessel::ship::{BigShip, SmallShip1};
+use crate::vessel::SpawnVessel;
 use crate::{GameAssets, GameState, ShipStats};
 
 pub struct GuardianPlayerPlugin;
@@ -48,17 +49,14 @@ impl Default for Player {
 fn spawn_player_small(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
-    mut ev_spawn_health: EventWriter<SpawnHealth>,
+    mut ev_spawn_vessel: EventWriter<SpawnVessel>,
 ) {
     let entity = commands
         .spawn((Player::default(), SmallShip1::new(&assets)))
         .id();
-    ev_spawn_turrets.send(SpawnTurretsEvent {
-        turrets: vec![Turret::new(entity, Vec2::default())],
-    });
-    ev_spawn_health.send(SpawnHealth {
+    ev_spawn_vessel.send(SpawnVessel {
         entity,
+        turrets: vec![Turret::new(entity, Vec2::default())],
         health: Health::new(entity, 100.0),
     });
 }
@@ -66,13 +64,13 @@ fn spawn_player_small(
 fn spawn_player_big(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
-    mut ev_spawn_health: EventWriter<SpawnHealth>,
+    mut ev_spawn_vessel: EventWriter<SpawnVessel>,
 ) {
     let entity = commands
         .spawn((Player::default(), BigShip::new(&assets)))
         .id();
-    ev_spawn_turrets.send(SpawnTurretsEvent {
+    ev_spawn_vessel.send(SpawnVessel {
+        entity,
         turrets: vec![
             Turret::new(entity, Vec2::new(16.0, 16.0)),
             Turret::new(entity, Vec2::new(-16.0, 16.0)),
@@ -81,9 +79,6 @@ fn spawn_player_big(
             Turret::new(entity, Vec2::new(-16.0, 48.0)),
             Turret::new(entity, Vec2::new(16.0, 48.0)),
         ],
-    });
-    ev_spawn_health.send(SpawnHealth {
-        entity,
         health: Health::new(entity, 10000.0),
     });
 }
