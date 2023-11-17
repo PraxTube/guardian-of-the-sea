@@ -110,9 +110,12 @@ fn spawn_player_big(
 fn steer_player(
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut player: Query<(&mut Transform, &ShipStats)>,
+    mut player: Query<(&mut Transform, &ShipStats), With<Player>>,
 ) {
-    let (mut transform, ship_stats) = player.single_mut();
+    let (mut transform, ship_stats) = match player.get_single_mut() {
+        Ok(p) => (p.0, p.1),
+        Err(_) => return,
+    };
 
     let mut steer_direction = 0.0;
     if keys.pressed(KeyCode::A) {
@@ -133,9 +136,12 @@ fn steer_player(
 fn accelerate_player(
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut player: Query<&mut ShipStats>,
+    mut player: Query<&mut ShipStats, With<Player>>,
 ) {
-    let mut ship_stats = player.single_mut();
+    let mut ship_stats = match player.get_single_mut() {
+        Ok(s) => s,
+        Err(_) => return,
+    };
 
     let mut acceleration = 0.0;
     if keys.pressed(KeyCode::W) {
