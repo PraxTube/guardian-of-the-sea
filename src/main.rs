@@ -5,6 +5,7 @@ use bevy::window::{PresentMode, Window, WindowMode};
 use bevy_asset_loader::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+mod assets;
 mod enemy;
 mod player;
 mod projectile;
@@ -13,35 +14,13 @@ mod ui;
 mod utils;
 mod world;
 
+pub use assets::GameAssets;
+
 #[derive(States, Clone, Eq, PartialEq, Debug, Hash, Default)]
 pub enum GameState {
     #[default]
     AssetLoading,
     Gaming,
-}
-
-#[derive(AssetCollection, Resource)]
-pub struct GameAssets {
-    #[asset(path = "ship.png")]
-    pub ship: Handle<Image>,
-    #[asset(path = "boat.png")]
-    pub boat: Handle<Image>,
-
-    #[asset(path = "dummy_enemy.png")]
-    pub dummy_enemy: Handle<Image>,
-
-    #[asset(path = "turret.png")]
-    pub turret: Handle<Image>,
-
-    #[asset(path = "water.png")]
-    pub water: Handle<Image>,
-
-    #[asset(path = "rocket.png")]
-    pub rocket: Handle<Image>,
-
-    #[asset(texture_atlas(tile_size_x = 32.0, tile_size_y = 32.0, columns = 8, rows = 1))]
-    #[asset(path = "gfx/explosion.png")]
-    pub explosion: Handle<TextureAtlas>,
 }
 
 #[derive(Component, Clone)]

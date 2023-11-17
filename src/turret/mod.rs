@@ -47,7 +47,7 @@ impl Default for Turret {
             target_direction: Vec2::default(),
             offset: Vec3::default(),
             cooling_down: false,
-            cooldown_timer: Timer::new(Duration::from_secs_f32(1.0), TimerMode::Repeating),
+            cooldown_timer: Timer::new(Duration::from_secs_f32(0.1), TimerMode::Repeating),
         }
     }
 }
@@ -76,7 +76,7 @@ fn spawn_turrets(
         for turret in &ev.turrets {
             commands.spawn((
                 SpriteBundle {
-                    texture: assets.turret.clone(),
+                    texture: assets.rocket_turret.clone(),
                     ..default()
                 },
                 turret.clone(),
