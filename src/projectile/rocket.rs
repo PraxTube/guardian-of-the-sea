@@ -101,9 +101,9 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTr
 fn spawn_rockets(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    mut ev_rocket_fired: EventReader<TurretTriggered>,
+    mut ev_turret_triggered: EventReader<TurretTriggered>,
 ) {
-    for ev in ev_rocket_fired.read() {
+    for ev in ev_turret_triggered.read() {
         if ev.turret_type == TurretType::Rocket {
             spawn_rocket(&mut commands, &assets, ev);
         }
