@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    projectile::rocket::RocketCollision,
+    projectile::ProjectileCollision,
     vessel::{ship::move_ships, SpawnVessel},
     GameState, ShipStats,
 };
@@ -176,13 +176,13 @@ fn spawn_health_bars(
     }
 }
 
-fn apply_rocket_damage(
+fn apply_projectile_damage(
     mut q_healths: Query<&mut Health>,
-    mut ev_rocket_collision: EventReader<RocketCollision>,
+    mut ev_projectile_collision: EventReader<ProjectileCollision>,
 ) {
-    for ev in ev_rocket_collision.read() {
-        if let Ok(mut health) = q_healths.get_mut(ev.entity) {
-            health.health -= ev.rocket.damage;
+    for ev in ev_projectile_collision.read() {
+        if let Ok(mut health) = q_healths.get_mut(ev.target) {
+            health.health -= ev.projectile.damage;
         }
     }
 }
@@ -197,7 +197,7 @@ impl Plugin for HealthPlugin {
                 move_health_bars.after(move_ships),
                 fill_health_bars,
                 spawn_health_bars,
-                apply_rocket_damage,
+                apply_projectile_damage,
             )
                 .run_if(in_state(GameState::Gaming)),
         );

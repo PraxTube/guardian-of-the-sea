@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{GameAssets, GameState};
 
-use super::rocket::RocketDespawn;
+use super::{ProjectileDespawn, ProjectileType};
 
 const GFX_SCALE: Vec3 = Vec3::splat(4.0);
 
@@ -27,9 +27,13 @@ impl Default for ExplosionAnimationTimer {
 fn spawn_rocket_explosion(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    mut ev_rocket_collision: EventReader<RocketDespawn>,
+    mut ev_projectile_despawn: EventReader<ProjectileDespawn>,
 ) {
-    for ev in ev_rocket_collision.read() {
+    for ev in ev_projectile_despawn.read() {
+        if ev.projectile.projectile_type != ProjectileType::Rocket {
+            continue;
+        }
+
         let transform = Transform::from_translation(ev.position).with_scale(GFX_SCALE);
         commands.spawn((
             RocketExplosion::default(),
