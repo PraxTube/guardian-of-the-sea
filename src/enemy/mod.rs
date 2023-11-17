@@ -5,6 +5,7 @@ use crate::{
     player::Player,
     turret::{SpawnTurretsEvent, Turret},
     ui::health::{Health, SpawnHealth},
+    vessel::ship::SmallShip1,
     GameAssets, GameState, ShipStats,
 };
 
@@ -42,32 +43,23 @@ fn spawn_dummy_enemy(
     mut ev_spawn_health: EventWriter<SpawnHealth>,
 ) {
     let transform = Transform::from_translation(Vec3::new(500.0, 500.0, 0.0));
-    let collider = Collider::capsule(Vec2::new(0.0, -20.0), Vec2::new(0.0, 20.0), 15.0);
-    let mut ship_stats = ShipStats::default();
-    ship_stats.current_speed = 50.0;
-
     let entity = commands
         .spawn((
             Enemy::default(),
-            ship_stats.clone(),
-            collider,
+            SmallShip1::new(&assets),
             CollisionGroups::new(
                 Group::from_bits(0b0100).unwrap(),
                 Group::from_bits(0b1000).unwrap(),
             ),
-            SpriteBundle {
-                transform,
-                texture: assets.dummy_enemy.clone(),
-                ..default()
-            },
         ))
+        .insert(transform)
         .id();
     ev_spawn_turrets.send(SpawnTurretsEvent {
         turrets: vec![Turret::new(entity, Vec2::default())],
     });
     ev_spawn_health.send(SpawnHealth {
         entity,
-        health: Health::new(entity, 100.0, ship_stats),
+        health: Health::new(entity, 100.0),
     })
 }
 
@@ -106,8 +98,8 @@ fn update_enemy_move_targets(
     }
 }
 
-fn steer_enemies(time: Res<Time>, mut q_enemies: Query<(&mut Transform, &ShipStats, &Enemy)>) {
-    for (mut transform, ship_stats, enemy) in &mut q_enemies {
+fn steer_enemies(mut q_enemies: Query<(&Transform, &mut ShipStats, &Enemy)>) {
+    for (transform, mut ship_stats, enemy) in &mut q_enemies {
         let angle = enemy
             .target_point
             .angle_between(transform.local_y().truncate());
@@ -116,14 +108,12 @@ fn steer_enemies(time: Res<Time>, mut q_enemies: Query<(&mut Transform, &ShipSta
         }
 
         let steer_direction = if angle < 0.0 { 1.0 } else { -1.0 };
-
-        let rotation = ship_stats.delta_steering * steer_direction * time.delta_seconds();
-        transform.rotate_z(rotation);
+        ship_stats.current_steering_direction = steer_direction;
     }
 }
 
 fn accelerate_enemies(time: Res<Time>, mut q_enemies: Query<(&Transform, &mut ShipStats, &Enemy)>) {
-    for (enemy_transform, mut enemy_ship_stats, enemy) in &mut q_enemies {
+    for (_enemy_transform, mut enemy_ship_stats, enemy) in &mut q_enemies {
         let speed = enemy
             .target_point
             .length_squared()

@@ -4,7 +4,8 @@ use bevy::window::{PrimaryWindow, WindowMode};
 
 use crate::player::input::{fetch_mouse_world_coords, MouseWorldCoords};
 use crate::player::Player;
-use crate::{move_ships, GameState};
+use crate::vessel::ship::move_ships;
+use crate::GameState;
 
 pub struct GuardianCameraPlugin;
 

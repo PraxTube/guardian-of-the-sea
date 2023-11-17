@@ -6,7 +6,8 @@ use crate::enemy::Enemy;
 use crate::player::input::{fetch_mouse_world_coords, MouseWorldCoords};
 use crate::player::Player;
 use crate::utils::quat_from_vec2;
-use crate::{move_ships, GameAssets, GameState};
+use crate::vessel::ship::{move_ships, steer_ships};
+use crate::{GameAssets, GameState};
 
 const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
 
@@ -17,17 +18,19 @@ impl Plugin for TurretPlugin {
         app.add_systems(
             Update,
             (
-                spawn_turrets,
-                reposition_turrets.after(move_ships),
-                update_player_turret_targets.before(rotate_turrets),
-                update_enemy_turret_targets.before(rotate_turrets),
+                reposition_turrets.after(move_ships).after(steer_ships),
+                update_player_turret_targets,
+                update_enemy_turret_targets,
                 rotate_turrets.after(fetch_mouse_world_coords),
-                cooldown_turrets,
-                despawn_turrets,
             )
+                .chain()
                 .run_if(in_state(GameState::Gaming)),
         )
-        .add_event::<SpawnTurretsEvent>();
+        .add_event::<SpawnTurretsEvent>()
+        .add_systems(
+            Update,
+            (spawn_turrets, cooldown_turrets, despawn_turrets).run_if(in_state(GameState::Gaming)),
+        );
     }
 }
 

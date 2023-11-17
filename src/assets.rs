@@ -8,8 +8,8 @@ pub struct GameAssets {
     #[asset(path = "boat.png")]
     pub boat: Handle<Image>,
 
-    #[asset(path = "dummy_enemy.png")]
-    pub dummy_enemy: Handle<Image>,
+    #[asset(path = "small_ship_1.png")]
+    pub small_ship_1: Handle<Image>,
 
     #[asset(path = "cannon_turret.png")]
     pub cannon_turret: Handle<Image>,

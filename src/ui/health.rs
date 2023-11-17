@@ -11,12 +11,12 @@ pub struct Health {
 }
 
 impl Health {
-    pub fn new(entity: Entity, max_health: f32, ship_stats: ShipStats) -> Self {
+    pub fn new(entity: Entity, max_health: f32) -> Self {
         Self {
             entity,
             health: max_health,
             max_health,
-            ship_stats,
+            ship_stats: ShipStats::default(),
         }
     }
 }
@@ -29,7 +29,7 @@ struct HealthBar {
 #[derive(Component)]
 struct HealthBarFill;
 
-#[derive(Event)]
+#[derive(Event, Clone)]
 pub struct SpawnHealth {
     pub entity: Entity,
     pub health: Health,
@@ -155,25 +155,31 @@ fn spawn_fill(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
         .id()
 }
 
-fn spawn_health_bars(mut commands: Commands, mut ev_spawn_health: EventReader<SpawnHealth>) {
+fn spawn_health_bar(commands: &mut Commands, ev: SpawnHealth) {
+    let container = spawn_container(commands, Vec3::ZERO, ev.entity, &ev.health.ship_stats);
+    let background = spawn_background(commands, &ev.health.ship_stats);
+    let fill_container = spawn_fill_container(commands);
+    let fill = spawn_fill(commands, &ev.health.ship_stats);
+
+    commands.entity(fill_container).push_children(&[fill]);
+    commands
+        .entity(container)
+        .push_children(&[fill_container, background]);
+}
+
+fn spawn_health_bars(
+    mut commands: Commands,
+    q_ship_stats: Query<&ShipStats>,
+    mut ev_spawn_health: EventReader<SpawnHealth>,
+) {
     for ev in ev_spawn_health.read() {
         if let Some(mut entity) = commands.get_entity(ev.entity) {
-            entity.insert(ev.health.clone());
-
-            let container = spawn_container(
-                &mut commands,
-                Vec3::default(),
-                ev.entity,
-                &ev.health.ship_stats,
-            );
-            let background = spawn_background(&mut commands, &ev.health.ship_stats);
-            let fill_container = spawn_fill_container(&mut commands);
-            let fill = spawn_fill(&mut commands, &ev.health.ship_stats);
-
-            commands.entity(fill_container).push_children(&[fill]);
-            commands
-                .entity(container)
-                .push_children(&[fill_container, background]);
+            if let Ok(ship_stats) = q_ship_stats.get(ev.entity) {
+                let mut ev = ev.clone();
+                ev.health.ship_stats = ship_stats.clone();
+                entity.insert(ev.health.clone());
+                spawn_health_bar(&mut commands, ev);
+            }
         }
     }
 }

@@ -1,10 +1,10 @@
 pub mod input;
 
 use bevy::prelude::*;
-use bevy_rapier2d::prelude::Collider;
 
 use crate::turret::{SpawnTurretsEvent, Turret};
 use crate::ui::health::{Health, SpawnHealth};
+use crate::vessel::ship::{BigShip, SmallShip1};
 use crate::{GameAssets, GameState, ShipStats};
 
 pub struct GuardianPlayerPlugin;
@@ -37,31 +37,29 @@ pub struct Player {
     active_momentum: bool,
 }
 
+impl Default for Player {
+    fn default() -> Self {
+        Self {
+            active_momentum: true,
+        }
+    }
+}
+
 fn spawn_player_small(
     mut commands: Commands,
     assets: Res<GameAssets>,
     mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
     mut ev_spawn_health: EventWriter<SpawnHealth>,
 ) {
-    let ship_stats = ShipStats::default();
     let entity = commands
-        .spawn((
-            Player {
-                active_momentum: true,
-            },
-            ship_stats.clone(),
-            SpriteBundle {
-                texture: assets.ship.clone(),
-                ..default()
-            },
-        ))
+        .spawn((Player::default(), SmallShip1::new(&assets)))
         .id();
     ev_spawn_turrets.send(SpawnTurretsEvent {
         turrets: vec![Turret::new(entity, Vec2::default())],
     });
     ev_spawn_health.send(SpawnHealth {
         entity,
-        health: Health::new(entity, 100.0, ship_stats),
+        health: Health::new(entity, 100.0),
     });
 }
 
@@ -71,25 +69,8 @@ fn spawn_player_big(
     mut ev_spawn_turrets: EventWriter<SpawnTurretsEvent>,
     mut ev_spawn_health: EventWriter<SpawnHealth>,
 ) {
-    let mut ship_stats = ShipStats::default();
-    ship_stats.delta_speed *= 0.75;
-    ship_stats.delta_steering *= 0.5;
-    ship_stats.health_bar_offset *= 4.0;
-    ship_stats.health_bar_scale *= 4.0;
-    let collider = Collider::capsule(Vec2::new(0.0, -90.0), Vec2::new(0.0, 90.0), 40.0);
-
     let entity = commands
-        .spawn((
-            Player {
-                active_momentum: true,
-            },
-            collider,
-            ship_stats.clone(),
-            SpriteBundle {
-                texture: assets.boat.clone(),
-                ..default()
-            },
-        ))
+        .spawn((Player::default(), BigShip::new(&assets)))
         .id();
     ev_spawn_turrets.send(SpawnTurretsEvent {
         turrets: vec![
@@ -103,17 +84,13 @@ fn spawn_player_big(
     });
     ev_spawn_health.send(SpawnHealth {
         entity,
-        health: Health::new(entity, 10000.0, ship_stats),
+        health: Health::new(entity, 10000.0),
     });
 }
 
-fn steer_player(
-    keys: Res<Input<KeyCode>>,
-    time: Res<Time>,
-    mut player: Query<(&mut Transform, &ShipStats), With<Player>>,
-) {
-    let (mut transform, ship_stats) = match player.get_single_mut() {
-        Ok(p) => (p.0, p.1),
+fn steer_player(keys: Res<Input<KeyCode>>, mut player: Query<&mut ShipStats, With<Player>>) {
+    let mut ship_stats = match player.get_single_mut() {
+        Ok(s) => s,
         Err(_) => return,
     };
 
@@ -124,13 +101,7 @@ fn steer_player(
     if keys.pressed(KeyCode::D) {
         steer_direction -= 1.0;
     }
-
-    if steer_direction == 0.0 {
-        return;
-    }
-
-    let rotation = ship_stats.delta_steering * steer_direction * time.delta_seconds();
-    transform.rotate_z(rotation);
+    ship_stats.current_steering_direction = steer_direction;
 }
 
 fn accelerate_player(
