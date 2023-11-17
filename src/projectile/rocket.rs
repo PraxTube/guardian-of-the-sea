@@ -5,13 +5,14 @@ use rand::prelude::*;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{enemy::Enemy, player::Player, turret::Turret, GameAssets, GameState};
+use crate::{enemy::Enemy, player::Player, turret::Turret, GameAssets, GameState, ShipStats};
 
 const SPARY_INTENSITY: f32 = 0.05;
 
 #[derive(Component, Clone)]
 pub struct Rocket {
     source: Option<Entity>,
+    source_velocity: Vec2,
     current_speed: f32,
     pub damage: f32,
     timer: Timer,
@@ -22,6 +23,7 @@ impl Default for Rocket {
     fn default() -> Self {
         Self {
             source: None,
+            source_velocity: Vec2::default(),
             current_speed: 0.0,
             damage: 1.0,
             timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Once),
@@ -31,9 +33,10 @@ impl Default for Rocket {
 }
 
 impl Rocket {
-    pub fn new(source: Entity, current_speed: f32) -> Self {
+    pub fn new(source: Entity, source_velocity: Vec2, current_speed: f32) -> Self {
         Self {
             source: Some(source),
+            source_velocity,
             current_speed,
             ..default()
         }
@@ -51,6 +54,8 @@ pub struct RocketTurret {
 #[derive(Event)]
 pub struct RocketFired {
     source: Entity,
+    source_speed: f32,
+    source_direction: Vec2,
     rocket_turret: RocketTurret,
 }
 
@@ -80,7 +85,11 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
                 .mul_vec3(ev.rocket_turret.right_offset),
     )
     .with_rotation(ev.rocket_turret.spawn_rotation);
-    let rocket = Rocket::new(ev.source, ev.rocket_turret.speed);
+    let rocket = Rocket::new(
+        ev.source,
+        ev.source_speed * ev.source_direction,
+        ev.rocket_turret.speed,
+    );
     let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
     let collision_groups = CollisionGroups::new(
         Group::from_bits(0b1000).unwrap(),
@@ -123,7 +132,9 @@ fn fire_rockets(
 fn move_rockets(time: Res<Time>, mut rockets: Query<(&mut Transform, &Rocket)>) {
     for (mut transform, rocket) in &mut rockets {
         let direction = transform.local_y();
-        transform.translation += direction * rocket.current_speed * time.delta_seconds();
+        transform.translation += (direction * rocket.current_speed
+            + rocket.source_velocity.extend(0.0))
+            * time.delta_seconds();
 
         let intensity = rocket.timer.elapsed_secs() / rocket.timer.duration().as_secs_f32();
         let mut rng = rand::thread_rng();
@@ -134,15 +145,15 @@ fn move_rockets(time: Res<Time>, mut rockets: Query<(&mut Transform, &Rocket)>) 
 fn shoot_player_rockets(
     keys: Res<Input<KeyCode>>,
     mut q_turrets: Query<(&mut Turret, &Transform)>,
-    q_player: Query<Entity, With<Player>>,
+    q_player: Query<(Entity, &Transform, &ShipStats), With<Player>>,
     mut ev_rocket_fired: EventWriter<RocketFired>,
 ) {
     if !keys.pressed(KeyCode::Space) {
         return;
     }
 
-    let player = match q_player.get_single() {
-        Ok(p) => p,
+    let (player, p_transform, ship_stats) = match q_player.get_single() {
+        Ok(p) => (p.0, p.1, p.2),
         Err(err) => {
             error!("there should be exactly on player, {}", err);
             return;
@@ -168,6 +179,8 @@ fn shoot_player_rockets(
 
         ev_rocket_fired.send(RocketFired {
             source,
+            source_speed: ship_stats.current_speed,
+            source_direction: p_transform.local_y().truncate(),
             rocket_turret: RocketTurret {
                 spawn_point: transform.translation,
                 spawn_rotation: transform.rotation,
@@ -182,7 +195,7 @@ fn shoot_player_rockets(
 
 fn shoot_enemy_rockets(
     mut q_turrets: Query<(&mut Turret, &Transform)>,
-    q_enemies: Query<Entity, With<Enemy>>,
+    q_enemies: Query<(&Transform, &ShipStats), With<Enemy>>,
     mut ev_rocket_fired: EventWriter<RocketFired>,
 ) {
     for (mut turret, transform) in &mut q_turrets {
@@ -198,12 +211,15 @@ fn shoot_enemy_rockets(
             }
         };
 
-        if q_enemies.get(source).is_err() {
-            continue;
-        }
+        let (e_transform, ship_stats) = match q_enemies.get(source) {
+            Ok(s) => (s.0, s.1),
+            Err(_) => continue,
+        };
 
         ev_rocket_fired.send(RocketFired {
             source,
+            source_speed: ship_stats.current_speed,
+            source_direction: e_transform.local_y().truncate(),
             rocket_turret: RocketTurret {
                 spawn_point: transform.translation,
                 spawn_rotation: transform.rotation,
