@@ -65,6 +65,11 @@ impl Turret {
     }
 }
 
+#[derive(Component, Clone)]
+pub struct TurretStats {
+    pub turret_offsets: Vec<Vec2>,
+}
+
 fn spawn_turrets(
     mut commands: Commands,
     assets: Res<GameAssets>,

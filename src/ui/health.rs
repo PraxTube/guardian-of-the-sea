@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 
-use crate::{projectile::rocket::RocketCollision, vessel::SpawnVessel, GameState, ShipStats};
+use crate::{
+    projectile::rocket::RocketCollision,
+    vessel::{ship::move_ships, SpawnVessel},
+    GameState, ShipStats,
+};
 
 #[derive(Component, Clone)]
 pub struct Health {
@@ -40,7 +44,7 @@ fn move_health_bars(
             }
 
             health_bar_transform.translation =
-                health_transform.translation + health.ship_stats.health_bar_offset;
+                health_transform.translation + health.ship_stats.health_bar_offset();
         }
     }
 }
@@ -97,7 +101,7 @@ fn spawn_container(
             HealthBar { entity },
             SpatialBundle {
                 transform: Transform::from_translation(
-                    spawn_position + ship_stats.health_bar_offset,
+                    spawn_position + ship_stats.health_bar_offset(),
                 ),
                 ..default()
             },
@@ -106,11 +110,8 @@ fn spawn_container(
 }
 
 fn spawn_background(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
-    let transform = Transform::from_scale(ship_stats.health_bar_scale).with_translation(Vec3::new(
-        ship_stats.health_bar_scale.x / 2.0,
-        0.0,
-        10.0,
-    ));
+    let transform = Transform::from_scale(ship_stats.health_bar_scale())
+        .with_translation(Vec3::new(ship_stats.health_bar_scale().x / 2.0, 0.0, 10.0));
     commands
         .spawn((SpriteBundle {
             sprite: Sprite {
@@ -131,11 +132,8 @@ fn spawn_fill_container(commands: &mut Commands) -> Entity {
 }
 
 fn spawn_fill(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
-    let transform = Transform::from_scale(ship_stats.health_bar_scale).with_translation(Vec3::new(
-        ship_stats.health_bar_scale.x / 2.0,
-        0.0,
-        20.0,
-    ));
+    let transform = Transform::from_scale(ship_stats.health_bar_scale())
+        .with_translation(Vec3::new(ship_stats.health_bar_scale().x / 2.0, 0.0, 20.0));
     commands
         .spawn((SpriteBundle {
             sprite: Sprite {
@@ -196,7 +194,7 @@ impl Plugin for HealthPlugin {
         app.add_systems(
             Update,
             (
-                move_health_bars,
+                move_health_bars.after(move_ships),
                 fill_health_bars,
                 spawn_health_bars,
                 apply_rocket_damage,

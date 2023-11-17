@@ -8,6 +8,8 @@ use bevy_rapier2d::prelude::*;
 use crate::{enemy::Enemy, player::Player, turret::Turret, GameAssets, GameState, ShipStats};
 
 const SPARY_INTENSITY: f32 = 0.05;
+const LEFT_TURRET_OFFSET: Vec3 = Vec3::new(5.0, 5.0, 0.0);
+const RIGHT_TURRET_OFFSET: Vec3 = Vec3::new(-5.0, 5.0, 0.0);
 
 #[derive(Component, Clone)]
 pub struct Rocket {
@@ -24,7 +26,7 @@ impl Default for Rocket {
         Self {
             source: None,
             source_velocity: Vec2::default(),
-            current_speed: 0.0,
+            current_speed: 1000.0,
             damage: 1.0,
             timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Once),
             disabled: false,
@@ -33,30 +35,20 @@ impl Default for Rocket {
 }
 
 impl Rocket {
-    pub fn new(source: Entity, source_velocity: Vec2, current_speed: f32) -> Self {
+    pub fn new(source: Entity, source_velocity: Vec2) -> Self {
         Self {
             source: Some(source),
             source_velocity,
-            current_speed,
             ..default()
         }
     }
 }
 
-pub struct RocketTurret {
-    pub spawn_point: Vec3,
-    pub spawn_rotation: Quat,
-    pub left_offset: Vec3,
-    pub right_offset: Vec3,
-    pub speed: f32,
-}
-
 #[derive(Event)]
 pub struct RocketFired {
     source: Entity,
-    source_speed: f32,
-    source_direction: Vec2,
-    rocket_turret: RocketTurret,
+    source_transform: Transform,
+    source_velocity: Vec2,
 }
 
 #[derive(Event)]
@@ -72,24 +64,15 @@ pub struct RocketDespawn {
 
 fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFired) {
     let left_transform = Transform::from_translation(
-        ev.rocket_turret.spawn_point
-            + ev.rocket_turret
-                .spawn_rotation
-                .mul_vec3(ev.rocket_turret.left_offset),
+        ev.source_transform.translation + ev.source_transform.rotation.mul_vec3(LEFT_TURRET_OFFSET),
     )
-    .with_rotation(ev.rocket_turret.spawn_rotation);
+    .with_rotation(ev.source_transform.rotation);
     let right_transform = Transform::from_translation(
-        ev.rocket_turret.spawn_point
-            + ev.rocket_turret
-                .spawn_rotation
-                .mul_vec3(ev.rocket_turret.right_offset),
+        ev.source_transform.translation
+            + ev.source_transform.rotation.mul_vec3(RIGHT_TURRET_OFFSET),
     )
-    .with_rotation(ev.rocket_turret.spawn_rotation);
-    let rocket = Rocket::new(
-        ev.source,
-        ev.source_speed * ev.source_direction,
-        ev.rocket_turret.speed,
-    );
+    .with_rotation(ev.source_transform.rotation);
+    let rocket = Rocket::new(ev.source, ev.source_velocity);
     let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
     let collision_groups = CollisionGroups::new(
         Group::from_bits(0b1000).unwrap(),
@@ -179,15 +162,8 @@ fn shoot_player_rockets(
 
         ev_rocket_fired.send(RocketFired {
             source,
-            source_speed: ship_stats.current_speed,
-            source_direction: p_transform.local_y().truncate(),
-            rocket_turret: RocketTurret {
-                spawn_point: transform.translation,
-                spawn_rotation: transform.rotation,
-                left_offset: Vec3::new(5.0, 5.0, 0.0),
-                right_offset: Vec3::new(-5.0, 5.0, 0.0),
-                speed: 1000.0,
-            },
+            source_transform: transform.clone(),
+            source_velocity: p_transform.local_y().truncate() * ship_stats.current_speed,
         });
         turret.cooling_down = true;
     }
@@ -218,15 +194,8 @@ fn shoot_enemy_rockets(
 
         ev_rocket_fired.send(RocketFired {
             source,
-            source_speed: ship_stats.current_speed,
-            source_direction: e_transform.local_y().truncate(),
-            rocket_turret: RocketTurret {
-                spawn_point: transform.translation,
-                spawn_rotation: transform.rotation,
-                left_offset: Vec3::new(5.0, 5.0, 0.0),
-                right_offset: Vec3::new(-5.0, 5.0, 0.0),
-                speed: 1000.0,
-            },
+            source_transform: transform.clone(),
+            source_velocity: e_transform.local_y().truncate() * ship_stats.current_speed,
         });
         turret.cooling_down = true;
     }
