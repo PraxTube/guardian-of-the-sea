@@ -5,11 +5,12 @@ use crate::{
     player::Player,
     turret::{SpawnTurretsEvent, Turret},
     ui::health::{Health, SpawnHealth},
-    utils::quat_from_vec2,
     GameAssets, GameState, ShipStats,
 };
 
 const MIN_ANGLE_THRESHOLD: f32 = 0.08;
+const MIN_PLAYER_DISTANCE: f32 = 300.0;
+const MAX_DISTANCE_SQUARED: f32 = 100_000.0;
 
 pub struct GuardianEnemyPlugin;
 
@@ -17,7 +18,12 @@ impl Plugin for GuardianEnemyPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (despawn_enemies, update_enemy_move_targets, steer_enemies)
+            (
+                despawn_enemies,
+                update_enemy_move_targets,
+                steer_enemies,
+                accelerate_enemies,
+            )
                 .run_if(in_state(GameState::Gaming)),
         )
         .add_systems(OnEnter(GameState::Gaming), spawn_dummy_enemy);
@@ -74,7 +80,7 @@ fn despawn_enemies(mut commands: Commands, q_enemies: Query<(Entity, &Health)>) 
 }
 
 fn update_enemy_move_targets(
-    mut q_enemies: Query<(&mut Transform, &ShipStats, &mut Enemy), Without<Player>>,
+    mut q_enemies: Query<(&Transform, &ShipStats, &mut Enemy), Without<Player>>,
     q_player: Query<(&Transform, &ShipStats), (With<Player>, Without<Enemy>)>,
 ) {
     let (player_transform, player_ship_stats) = match q_player.get_single() {
@@ -83,9 +89,10 @@ fn update_enemy_move_targets(
     };
 
     let p = player_transform.translation.truncate();
-    let p_perp = player_transform.local_y().truncate().perp() * 500.0;
+    let p_perp = player_transform.local_y().truncate().perp()
+        * (player_ship_stats.current_speed).max(MIN_PLAYER_DISTANCE);
 
-    for (mut enemy_transform, enemy_ship_stats, mut enemy) in &mut q_enemies {
+    for (enemy_transform, _enemy_ship_stats, mut enemy) in &mut q_enemies {
         let e = enemy_transform.translation.truncate();
         let l_target = p + p_perp - e;
         let r_target = p - p_perp - e;
@@ -112,5 +119,20 @@ fn steer_enemies(time: Res<Time>, mut q_enemies: Query<(&mut Transform, &ShipSta
 
         let rotation = ship_stats.delta_steering * steer_direction * time.delta_seconds();
         transform.rotate_z(rotation);
+    }
+}
+
+fn accelerate_enemies(time: Res<Time>, mut q_enemies: Query<(&Transform, &mut ShipStats, &Enemy)>) {
+    for (enemy_transform, mut enemy_ship_stats, enemy) in &mut q_enemies {
+        let speed = enemy
+            .target_point
+            .length_squared()
+            .min(MAX_DISTANCE_SQUARED)
+            / MAX_DISTANCE_SQUARED;
+        if enemy_ship_stats.current_speed / enemy_ship_stats.max_speed < speed {
+            enemy_ship_stats.current_speed += enemy_ship_stats.delta_speed * time.delta_seconds();
+        } else {
+            enemy_ship_stats.current_speed -= enemy_ship_stats.delta_speed * time.delta_seconds();
+        }
     }
 }
