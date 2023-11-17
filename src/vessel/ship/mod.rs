@@ -90,10 +90,10 @@ impl BigShip {
             },
             turret_stats: TurretStats {
                 turret_offsets: vec![
-                    Vec2::new(16.0, 16.0),
-                    Vec2::new(-16.0, 16.0),
-                    Vec2::new(16.0, -16.0),
                     Vec2::new(-16.0, -16.0),
+                    Vec2::new(16.0, -16.0),
+                    Vec2::new(-16.0, 16.0),
+                    Vec2::new(16.0, 16.0),
                     Vec2::new(-16.0, 48.0),
                     Vec2::new(16.0, 48.0),
                 ],

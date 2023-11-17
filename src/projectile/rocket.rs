@@ -5,7 +5,10 @@ use rand::prelude::*;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{enemy::Enemy, player::Player, turret::Turret, GameAssets, GameState, ShipStats};
+use crate::{
+    turret::{TurretTriggered, TurretType},
+    GameAssets, GameState,
+};
 
 const SPARY_INTENSITY: f32 = 0.05;
 const LEFT_TURRET_OFFSET: Vec3 = Vec3::new(5.0, 5.0, 0.0);
@@ -45,13 +48,6 @@ impl Rocket {
 }
 
 #[derive(Event)]
-pub struct RocketFired {
-    source: Entity,
-    source_transform: Transform,
-    source_velocity: Vec2,
-}
-
-#[derive(Event)]
 pub struct RocketCollision {
     pub entity: Entity,
     pub rocket: Rocket,
@@ -62,7 +58,7 @@ pub struct RocketDespawn {
     pub position: Vec3,
 }
 
-fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFired) {
+fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTriggered) {
     let left_transform = Transform::from_translation(
         ev.source_transform.translation + ev.source_transform.rotation.mul_vec3(LEFT_TURRET_OFFSET),
     )
@@ -102,13 +98,15 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &RocketFi
     ));
 }
 
-fn fire_rockets(
+fn spawn_rockets(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    mut ev_rocket_fired: EventReader<RocketFired>,
+    mut ev_rocket_fired: EventReader<TurretTriggered>,
 ) {
     for ev in ev_rocket_fired.read() {
-        spawn_rocket(&mut commands, &assets, ev);
+        if ev.turret_type == TurretType::Rocket {
+            spawn_rocket(&mut commands, &assets, ev);
+        }
     }
 }
 
@@ -122,82 +120,6 @@ fn move_rockets(time: Res<Time>, mut rockets: Query<(&mut Transform, &Rocket)>) 
         let intensity = rocket.timer.elapsed_secs() / rocket.timer.duration().as_secs_f32();
         let mut rng = rand::thread_rng();
         transform.rotate_z(rng.gen_range(-1.0..1.0) * intensity.powi(2) * SPARY_INTENSITY);
-    }
-}
-
-fn shoot_player_rockets(
-    keys: Res<Input<KeyCode>>,
-    mut q_turrets: Query<(&mut Turret, &Transform)>,
-    q_player: Query<(Entity, &Transform, &ShipStats), With<Player>>,
-    mut ev_rocket_fired: EventWriter<RocketFired>,
-) {
-    if !keys.pressed(KeyCode::Space) {
-        return;
-    }
-
-    let (player, p_transform, ship_stats) = match q_player.get_single() {
-        Ok(p) => (p.0, p.1, p.2),
-        Err(err) => {
-            error!("there should be exactly on player, {}", err);
-            return;
-        }
-    };
-
-    for (mut turret, transform) in &mut q_turrets {
-        if turret.cooling_down {
-            continue;
-        }
-
-        let source = match turret.source {
-            Some(s) => s,
-            None => {
-                error!("the shooting turret does not have a source");
-                continue;
-            }
-        };
-
-        if source != player {
-            continue;
-        }
-
-        ev_rocket_fired.send(RocketFired {
-            source,
-            source_transform: transform.clone(),
-            source_velocity: p_transform.local_y().truncate() * ship_stats.current_speed,
-        });
-        turret.cooling_down = true;
-    }
-}
-
-fn shoot_enemy_rockets(
-    mut q_turrets: Query<(&mut Turret, &Transform)>,
-    q_enemies: Query<(&Transform, &ShipStats), With<Enemy>>,
-    mut ev_rocket_fired: EventWriter<RocketFired>,
-) {
-    for (mut turret, transform) in &mut q_turrets {
-        if turret.cooling_down {
-            continue;
-        }
-
-        let source = match turret.source {
-            Some(s) => s,
-            None => {
-                error!("the shooting turret does not have a source");
-                continue;
-            }
-        };
-
-        let (e_transform, ship_stats) = match q_enemies.get(source) {
-            Ok(s) => (s.0, s.1),
-            Err(_) => continue,
-        };
-
-        ev_rocket_fired.send(RocketFired {
-            source,
-            source_transform: transform.clone(),
-            source_velocity: e_transform.local_y().truncate() * ship_stats.current_speed,
-        });
-        turret.cooling_down = true;
     }
 }
 
@@ -267,9 +189,7 @@ impl Plugin for RocketPlugin {
         app.add_systems(
             Update,
             (
-                shoot_player_rockets,
-                shoot_enemy_rockets,
-                fire_rockets,
+                spawn_rockets,
                 move_rockets,
                 despawn_rockets,
                 check_rocket_collisions,
@@ -277,7 +197,6 @@ impl Plugin for RocketPlugin {
                 .chain()
                 .run_if(in_state(GameState::Gaming)),
         )
-        .add_event::<RocketFired>()
         .add_event::<RocketCollision>()
         .add_event::<RocketDespawn>();
     }

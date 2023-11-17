@@ -2,12 +2,12 @@ pub mod ship;
 
 use bevy::prelude::*;
 
-use crate::{turret::Turret, ui::health::Health};
+use crate::{turret::TurretType, ui::health::Health};
 
 #[derive(Event, Clone)]
 pub struct SpawnVessel {
     pub entity: Entity,
-    pub turrets: Vec<Turret>,
+    pub turrets: Vec<Option<TurretType>>,
     pub health: Health,
 }
 

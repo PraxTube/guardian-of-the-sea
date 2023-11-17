@@ -2,7 +2,7 @@ pub mod input;
 
 use bevy::prelude::*;
 
-use crate::turret::Turret;
+use crate::turret::TurretType;
 use crate::ui::health::Health;
 use crate::vessel::ship::{BigShip, SmallShip1};
 use crate::vessel::SpawnVessel;
@@ -56,7 +56,7 @@ fn spawn_player_small(
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,
-        turrets: vec![Turret::new(entity, Vec2::default())],
+        turrets: vec![None],
         health: Health::new(entity, 100.0),
     });
 }
@@ -72,12 +72,12 @@ fn spawn_player_big(
     ev_spawn_vessel.send(SpawnVessel {
         entity,
         turrets: vec![
-            Turret::new(entity, Vec2::new(16.0, 16.0)),
-            Turret::new(entity, Vec2::new(-16.0, 16.0)),
-            Turret::new(entity, Vec2::new(16.0, -16.0)),
-            Turret::new(entity, Vec2::new(-16.0, -16.0)),
-            Turret::new(entity, Vec2::new(-16.0, 48.0)),
-            Turret::new(entity, Vec2::new(16.0, 48.0)),
+            None,
+            None,
+            Some(TurretType::Rocket),
+            Some(TurretType::Rocket),
+            None,
+            Some(TurretType::Cannon),
         ],
         health: Health::new(entity, 10000.0),
     });

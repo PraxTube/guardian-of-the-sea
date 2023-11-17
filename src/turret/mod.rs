@@ -8,7 +8,7 @@ use crate::player::Player;
 use crate::utils::quat_from_vec2;
 use crate::vessel::ship::{move_ships, steer_ships};
 use crate::vessel::SpawnVessel;
-use crate::{GameAssets, GameState};
+use crate::{GameAssets, GameState, ShipStats};
 
 const TURRET_Z_OFFSET: Vec3 = Vec3::new(0.0, 0.0, 10.0);
 
@@ -27,15 +27,30 @@ impl Plugin for TurretPlugin {
                 .chain()
                 .run_if(in_state(GameState::Gaming)),
         )
+        .add_event::<TurretTriggered>()
         .add_systems(
             Update,
-            (spawn_turrets, cooldown_turrets, despawn_turrets).run_if(in_state(GameState::Gaming)),
+            (
+                spawn_turrets,
+                cooldown_turrets,
+                despawn_turrets,
+                trigger_player_turrets,
+                trigger_enemy_turrets,
+            )
+                .run_if(in_state(GameState::Gaming)),
         );
     }
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum TurretType {
+    Cannon,
+    Rocket,
+}
+
 #[derive(Component, Clone)]
 pub struct Turret {
+    pub turret_type: TurretType,
     pub source: Option<Entity>,
     pub target_direction: Vec2,
     pub offset: Vec3,
@@ -46,6 +61,7 @@ pub struct Turret {
 impl Default for Turret {
     fn default() -> Self {
         Self {
+            turret_type: TurretType::Cannon,
             source: None,
             target_direction: Vec2::default(),
             offset: Vec3::default(),
@@ -56,8 +72,9 @@ impl Default for Turret {
 }
 
 impl Turret {
-    pub fn new(source: Entity, offset: Vec2) -> Self {
+    pub fn new(turret_type: TurretType, source: Entity, offset: Vec2) -> Self {
         Self {
+            turret_type,
             source: Some(source),
             offset: offset.extend(0.0),
             ..default()
@@ -70,19 +87,45 @@ pub struct TurretStats {
     pub turret_offsets: Vec<Vec2>,
 }
 
+#[derive(Event)]
+pub struct TurretTriggered {
+    pub turret_type: TurretType,
+    pub source: Entity,
+    pub source_transform: Transform,
+    pub source_velocity: Vec2,
+}
+
 fn spawn_turrets(
     mut commands: Commands,
     assets: Res<GameAssets>,
+    q_turret_stats: Query<&TurretStats>,
     mut ev_spawn_turrets: EventReader<SpawnVessel>,
 ) {
     for ev in ev_spawn_turrets.read() {
-        for turret in &ev.turrets {
+        for (i, turret) in ev.turrets.iter().enumerate() {
+            let turret_type = match turret {
+                Some(t) => t,
+                None => continue,
+            };
+            let turret_stats = match q_turret_stats.get(ev.entity) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+
+            let texture = match turret_type {
+                TurretType::Cannon => assets.cannon_turret.clone(),
+                TurretType::Rocket => assets.rocket_turret.clone(),
+            };
             commands.spawn((
                 SpriteBundle {
-                    texture: assets.rocket_turret.clone(),
+                    texture,
                     ..default()
                 },
-                turret.clone(),
+                Turret::new(
+                    turret_type.clone(),
+                    ev.entity,
+                    turret_stats.turret_offsets[i],
+                ),
             ));
         }
     }
@@ -188,5 +231,83 @@ fn despawn_turrets(
             }
             None => commands.entity(entity).despawn_recursive(),
         }
+    }
+}
+
+fn trigger_player_turrets(
+    keys: Res<Input<KeyCode>>,
+    mut q_turrets: Query<(&mut Turret, &Transform)>,
+    q_player: Query<(Entity, &Transform, &ShipStats), With<Player>>,
+    mut ev_rocket_fired: EventWriter<TurretTriggered>,
+) {
+    if !keys.pressed(KeyCode::Space) {
+        return;
+    }
+
+    let (player, p_transform, ship_stats) = match q_player.get_single() {
+        Ok(p) => (p.0, p.1, p.2),
+        Err(err) => {
+            error!("there should be exactly on player, {}", err);
+            return;
+        }
+    };
+
+    for (mut turret, transform) in &mut q_turrets {
+        if turret.cooling_down {
+            continue;
+        }
+
+        let source = match turret.source {
+            Some(s) => s,
+            None => {
+                error!("the shooting turret does not have a source");
+                continue;
+            }
+        };
+
+        if source != player {
+            continue;
+        }
+
+        ev_rocket_fired.send(TurretTriggered {
+            turret_type: turret.turret_type,
+            source,
+            source_transform: transform.clone(),
+            source_velocity: p_transform.local_y().truncate() * ship_stats.current_speed,
+        });
+        turret.cooling_down = true;
+    }
+}
+
+fn trigger_enemy_turrets(
+    mut q_turrets: Query<(&mut Turret, &Transform)>,
+    q_enemies: Query<(&Transform, &ShipStats), With<Enemy>>,
+    mut ev_rocket_fired: EventWriter<TurretTriggered>,
+) {
+    for (mut turret, transform) in &mut q_turrets {
+        if turret.cooling_down {
+            continue;
+        }
+
+        let source = match turret.source {
+            Some(s) => s,
+            None => {
+                error!("the shooting turret does not have a source");
+                continue;
+            }
+        };
+
+        let (e_transform, ship_stats) = match q_enemies.get(source) {
+            Ok(s) => (s.0, s.1),
+            Err(_) => continue,
+        };
+
+        ev_rocket_fired.send(TurretTriggered {
+            turret_type: turret.turret_type,
+            source,
+            source_transform: transform.clone(),
+            source_velocity: e_transform.local_y().truncate() * ship_stats.current_speed,
+        });
+        turret.cooling_down = true;
     }
 }

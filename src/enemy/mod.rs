@@ -3,7 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{
     player::Player,
-    turret::Turret,
+    turret::TurretType,
     ui::health::Health,
     vessel::{ship::SmallShip1, SpawnVessel},
     GameAssets, GameState, ShipStats,
@@ -55,7 +55,7 @@ fn spawn_dummy_enemy(
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,
-        turrets: vec![Turret::new(entity, Vec2::default())],
+        turrets: vec![Some(TurretType::Rocket)],
         health: Health::new(entity, 100.0),
     });
 }
