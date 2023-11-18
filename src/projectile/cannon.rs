@@ -3,6 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{
     turret::{TurretTriggered, TurretType},
+    utils::anim_sprite::{AnimSprite, AnimSpriteTimer},
     GameAssets, GameState,
 };
 
@@ -10,6 +11,7 @@ use super::{Projectile, ProjectileTimer, ProjectileType};
 
 const DAMAGE: f32 = 20.0;
 const LIFE_TIME: f32 = 2.0;
+const CANNON_SIZE: f32 = 3.0;
 
 #[derive(Component, Clone)]
 pub struct Cannon {
@@ -37,8 +39,9 @@ impl Cannon {
 
 fn spawn_cannon(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTriggered) {
     let transform = Transform::from_translation(ev.source_transform.translation)
-        .with_rotation(ev.source_transform.rotation);
-    let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
+        .with_rotation(ev.source_transform.rotation)
+        .with_scale(Vec3::splat(CANNON_SIZE));
+    let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 6.0), 3.0);
     let collision_groups = CollisionGroups::new(
         Group::from_bits(0b1000).unwrap(),
         Group::from_bits(0b0100).unwrap(),
@@ -48,9 +51,11 @@ fn spawn_cannon(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTr
         Cannon::new(ev.source_velocity),
         Projectile::new(ProjectileType::Cannon, ev.source, DAMAGE),
         ProjectileTimer::new(LIFE_TIME),
-        SpriteBundle {
+        AnimSprite::new(4, true),
+        AnimSpriteTimer::default(),
+        SpriteSheetBundle {
             transform,
-            texture: assets.cannon.clone(),
+            texture_atlas: assets.cannon.clone(),
             ..default()
         },
         collider,

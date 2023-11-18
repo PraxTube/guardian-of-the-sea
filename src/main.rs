@@ -52,6 +52,7 @@ fn main() {
         .add_plugins((
             world::GuardianWorldPlugin,
             ui::GuardianUiPlugin,
+            utils::GuardianUtilsPlugin,
             projectile::ProjectilePlugin,
             turret::TurretPlugin,
             vessel::GuardianVesselPlugin,

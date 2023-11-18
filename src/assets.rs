@@ -19,8 +19,10 @@ pub struct GameAssets {
     #[asset(path = "water.png")]
     pub water: Handle<Image>,
 
+    #[asset(texture_atlas(tile_size_x = 16.0, tile_size_y = 16.0, columns = 4, rows = 1))]
     #[asset(path = "cannon.png")]
-    pub cannon: Handle<Image>,
+    pub cannon: Handle<TextureAtlas>,
+
     #[asset(path = "rocket.png")]
     pub rocket: Handle<Image>,
 

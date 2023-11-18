@@ -1,4 +1,14 @@
+pub mod anim_sprite;
+
 use bevy::prelude::*;
+
+pub struct GuardianUtilsPlugin;
+
+impl Plugin for GuardianUtilsPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(anim_sprite::AnimSpritePlugin);
+    }
+}
 
 pub fn quat_from_vec2(direction: Vec2) -> Quat {
     Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, Vec2::X.angle_between(direction))
