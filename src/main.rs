@@ -6,6 +6,7 @@ use bevy_asset_loader::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 mod assets;
+mod collision;
 mod enemy;
 mod player;
 mod projectile;

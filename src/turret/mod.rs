@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
+use crate::collision::{ENEMY_LAYER, PLAYER_LAYER};
 use crate::enemy::Enemy;
 use crate::player::input::{fetch_mouse_world_coords, MouseWorldCoords};
 use crate::player::Player;
@@ -87,6 +88,8 @@ pub struct TurretStats {
 #[derive(Event)]
 pub struct TurretTriggered {
     pub turret_type: TurretType,
+    pub turret_layer: u32,
+    pub turret_mask: u32,
     pub source: Entity,
     pub source_transform: Transform,
     pub source_velocity: Vec2,
@@ -252,6 +255,8 @@ fn trigger_player_turrets(
 
         ev_rocket_fired.send(TurretTriggered {
             turret_type: turret.turret_type,
+            turret_layer: PLAYER_LAYER,
+            turret_mask: ENEMY_LAYER,
             source: turret.source,
             source_transform: transform.clone(),
             source_velocity: p_transform.local_y().truncate() * ship_stats.current_speed,
@@ -277,6 +282,8 @@ fn trigger_enemy_turrets(
 
         ev_rocket_fired.send(TurretTriggered {
             turret_type: turret.turret_type,
+            turret_layer: ENEMY_LAYER,
+            turret_mask: PLAYER_LAYER,
             source: turret.source,
             source_transform: transform.clone(),
             source_velocity: e_transform.local_y().truncate() * ship_stats.current_speed,

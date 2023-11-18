@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
+    collision::PROJECTILE_LAYER,
     turret::{TurretTriggered, TurretType},
     utils::anim_sprite::{AnimSprite, AnimSpriteTimer},
     GameAssets, GameState,
@@ -9,7 +10,7 @@ use crate::{
 
 use super::{Projectile, ProjectileTimer, ProjectileType};
 
-const DAMAGE: f32 = 20.0;
+const DAMAGE: f32 = 1.0;
 const LIFE_TIME: f32 = 2.0;
 const CANNON_SIZE: f32 = 2.0;
 
@@ -43,13 +44,13 @@ fn spawn_cannon(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTr
         .with_scale(Vec3::splat(CANNON_SIZE));
     let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 6.0), 3.0);
     let collision_groups = CollisionGroups::new(
-        Group::from_bits(0b1000).unwrap(),
-        Group::from_bits(0b0100).unwrap(),
+        Group::from_bits(PROJECTILE_LAYER).unwrap(),
+        Group::from_bits(ev.turret_mask).unwrap(),
     );
 
     commands.spawn((
         Cannon::new(ev.source_velocity),
-        Projectile::new(ProjectileType::Cannon, ev.source, DAMAGE),
+        Projectile::new(ProjectileType::Cannon, ev.source, ev.turret_mask, DAMAGE),
         ProjectileTimer::new(LIFE_TIME),
         AnimSprite::new(4, true),
         AnimSpriteTimer::default(),

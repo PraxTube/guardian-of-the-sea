@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
+    collision::PROJECTILE_LAYER,
     turret::{TurretTriggered, TurretType},
     GameAssets, GameState,
 };
@@ -13,7 +14,7 @@ use super::{Projectile, ProjectileTimer, ProjectileType};
 const SPARY_INTENSITY: f32 = 0.05;
 const LEFT_TURRET_OFFSET: Vec3 = Vec3::new(5.0, 5.0, 0.0);
 const RIGHT_TURRET_OFFSET: Vec3 = Vec3::new(-5.0, 5.0, 0.0);
-const DAMAGE: f32 = 1.0;
+const DAMAGE: f32 = 5.0;
 const LIFE_TIME: f32 = 2.0;
 
 #[derive(Component, Clone)]
@@ -51,12 +52,12 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTr
     )
     .with_rotation(ev.source_transform.rotation);
     let rocket = Rocket::new(ev.source_velocity);
-    let projectile = Projectile::new(ProjectileType::Rocket, ev.source, DAMAGE);
+    let projectile = Projectile::new(ProjectileType::Rocket, ev.source, ev.turret_mask, DAMAGE);
     let projectile_timer = ProjectileTimer::new(LIFE_TIME);
     let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
     let collision_groups = CollisionGroups::new(
-        Group::from_bits(0b1000).unwrap(),
-        Group::from_bits(0b0100).unwrap(),
+        Group::from_bits(PROJECTILE_LAYER).unwrap(),
+        Group::from_bits(ev.turret_mask).unwrap(),
     );
 
     commands.spawn((

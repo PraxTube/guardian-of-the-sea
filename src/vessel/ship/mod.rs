@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier2d::prelude::Collider;
+use bevy_rapier2d::prelude::{Collider, CollisionGroups, Group};
 
 use crate::{turret::TurretStats, GameAssets, GameState};
 
@@ -38,31 +38,43 @@ impl ShipStats {
 }
 
 #[derive(Bundle)]
-pub struct SmallShip1 {
+pub struct ShipVessel {
     collider: Collider,
+    collision_groups: CollisionGroups,
     ship_stats: ShipStats,
     turret_stats: TurretStats,
     sprite: SpriteBundle,
 }
 
+#[derive(Bundle)]
+pub struct SmallShip1 {
+    ship_vessel: ShipVessel,
+}
+
 impl SmallShip1 {
-    pub fn new(assets: &Res<GameAssets>) -> Self {
+    pub fn new(assets: &Res<GameAssets>, collision_layer: u32, collision_mask: u32) -> Self {
         Self {
-            collider: Collider::capsule(Vec2::new(0.0, -20.0), Vec2::new(0.0, 20.0), 15.0),
-            ship_stats: ShipStats {
-                delta_steering: 4.0,
-                delta_speed: 100.0,
-                min_speed: -150.0,
-                max_speed: 500.0,
-                health_bar_size: 1.0,
-                ..default()
-            },
-            turret_stats: TurretStats {
-                turret_offsets: vec![Vec2::ZERO],
-            },
-            sprite: SpriteBundle {
-                texture: assets.small_ship_1.clone(),
-                ..default()
+            ship_vessel: ShipVessel {
+                collider: Collider::capsule(Vec2::new(0.0, -20.0), Vec2::new(0.0, 20.0), 15.0),
+                collision_groups: CollisionGroups::new(
+                    Group::from_bits(collision_layer).unwrap(),
+                    Group::from_bits(collision_mask).unwrap(),
+                ),
+                ship_stats: ShipStats {
+                    delta_steering: 4.0,
+                    delta_speed: 100.0,
+                    min_speed: -150.0,
+                    max_speed: 500.0,
+                    health_bar_size: 1.0,
+                    ..default()
+                },
+                turret_stats: TurretStats {
+                    turret_offsets: vec![Vec2::ZERO],
+                },
+                sprite: SpriteBundle {
+                    texture: assets.small_ship_1.clone(),
+                    ..default()
+                },
             },
         }
     }
@@ -70,37 +82,40 @@ impl SmallShip1 {
 
 #[derive(Bundle)]
 pub struct BigShip {
-    collider: Collider,
-    ship_stats: ShipStats,
-    turret_stats: TurretStats,
-    sprite: SpriteBundle,
+    ship_vessel: ShipVessel,
 }
 
 impl BigShip {
-    pub fn new(assets: &Res<GameAssets>) -> Self {
+    pub fn new(assets: &Res<GameAssets>, collision_layer: u32, collision_mask: u32) -> Self {
         Self {
-            collider: Collider::capsule(Vec2::new(0.0, -90.0), Vec2::new(0.0, 90.0), 40.0),
-            ship_stats: ShipStats {
-                delta_steering: 2.0,
-                delta_speed: 75.0,
-                min_speed: -100.0,
-                max_speed: 400.0,
-                health_bar_size: 4.0,
-                ..default()
-            },
-            turret_stats: TurretStats {
-                turret_offsets: vec![
-                    Vec2::new(-16.0, -16.0),
-                    Vec2::new(16.0, -16.0),
-                    Vec2::new(-16.0, 16.0),
-                    Vec2::new(16.0, 16.0),
-                    Vec2::new(-16.0, 48.0),
-                    Vec2::new(16.0, 48.0),
-                ],
-            },
-            sprite: SpriteBundle {
-                texture: assets.boat.clone(),
-                ..default()
+            ship_vessel: ShipVessel {
+                collider: Collider::capsule(Vec2::new(0.0, -90.0), Vec2::new(0.0, 90.0), 40.0),
+                collision_groups: CollisionGroups::new(
+                    Group::from_bits(collision_layer).unwrap(),
+                    Group::from_bits(collision_mask).unwrap(),
+                ),
+                ship_stats: ShipStats {
+                    delta_steering: 2.0,
+                    delta_speed: 75.0,
+                    min_speed: -100.0,
+                    max_speed: 400.0,
+                    health_bar_size: 4.0,
+                    ..default()
+                },
+                turret_stats: TurretStats {
+                    turret_offsets: vec![
+                        Vec2::new(-16.0, -16.0),
+                        Vec2::new(16.0, -16.0),
+                        Vec2::new(-16.0, 16.0),
+                        Vec2::new(16.0, 16.0),
+                        Vec2::new(-16.0, 48.0),
+                        Vec2::new(16.0, 48.0),
+                    ],
+                },
+                sprite: SpriteBundle {
+                    texture: assets.boat.clone(),
+                    ..default()
+                },
             },
         }
     }

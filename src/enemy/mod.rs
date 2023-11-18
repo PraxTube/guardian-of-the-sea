@@ -1,11 +1,14 @@
 use bevy::prelude::*;
-use bevy_rapier2d::prelude::*;
 
 use crate::{
+    collision::{ENEMY_LAYER, PROJECTILE_LAYER},
     player::Player,
     turret::TurretType,
     ui::health::Health,
-    vessel::{ship::SmallShip1, SpawnVessel},
+    vessel::{
+        ship::{BigShip, SmallShip1},
+        SpawnVessel,
+    },
     GameAssets, GameState, ShipStats,
 };
 
@@ -45,11 +48,20 @@ fn spawn_dummy_enemy(
     let entity = commands
         .spawn((
             Enemy::default(),
-            SmallShip1::new(&assets),
-            CollisionGroups::new(
-                Group::from_bits(0b0100).unwrap(),
-                Group::from_bits(0b1000).unwrap(),
-            ),
+            BigShip::new(&assets, ENEMY_LAYER, PROJECTILE_LAYER),
+        ))
+        .insert(transform)
+        .id();
+    ev_spawn_vessel.send(SpawnVessel {
+        entity,
+        turrets: vec![Some(TurretType::Rocket)],
+        health: Health::new(entity, 5000.0),
+    });
+    let transform = Transform::from_translation(Vec3::new(-500.0, 500.0, 0.0));
+    let entity = commands
+        .spawn((
+            Enemy::default(),
+            SmallShip1::new(&assets, ENEMY_LAYER, PROJECTILE_LAYER),
         ))
         .insert(transform)
         .id();

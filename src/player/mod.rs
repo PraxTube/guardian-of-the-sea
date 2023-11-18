@@ -2,6 +2,7 @@ pub mod input;
 
 use bevy::prelude::*;
 
+use crate::collision::{PLAYER_LAYER, PROJECTILE_LAYER};
 use crate::turret::TurretType;
 use crate::ui::health::Health;
 use crate::vessel::ship::{BigShip, SmallShip1};
@@ -52,7 +53,10 @@ fn spawn_player_small(
     mut ev_spawn_vessel: EventWriter<SpawnVessel>,
 ) {
     let entity = commands
-        .spawn((Player::default(), SmallShip1::new(&assets)))
+        .spawn((
+            Player::default(),
+            SmallShip1::new(&assets, PLAYER_LAYER, PROJECTILE_LAYER),
+        ))
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,
@@ -67,7 +71,10 @@ fn spawn_player_big(
     mut ev_spawn_vessel: EventWriter<SpawnVessel>,
 ) {
     let entity = commands
-        .spawn((Player::default(), BigShip::new(&assets)))
+        .spawn((
+            Player::default(),
+            BigShip::new(&assets, PLAYER_LAYER, PROJECTILE_LAYER),
+        ))
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,

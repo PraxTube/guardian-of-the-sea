@@ -7,7 +7,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::GameState;
+use crate::{collision::PROJECTILE_LAYER, GameState};
 
 pub struct ProjectilePlugin;
 
@@ -41,16 +41,26 @@ pub enum ProjectileType {
 #[derive(Component, Clone)]
 pub struct Projectile {
     pub projectile_type: ProjectileType,
-    pub source: Option<Entity>,
+    pub source: Entity,
+    groups: CollisionGroups,
     pub damage: f32,
     pub disabled: bool,
 }
 
 impl Projectile {
-    pub fn new(projectile_type: ProjectileType, source: Entity, damage: f32) -> Self {
+    pub fn new(
+        projectile_type: ProjectileType,
+        source: Entity,
+        collision_mask: u32,
+        damage: f32,
+    ) -> Self {
         Self {
             projectile_type,
-            source: Some(source),
+            source,
+            groups: CollisionGroups::new(
+                Group::from_bits(PROJECTILE_LAYER).unwrap(),
+                Group::from_bits(collision_mask).unwrap(),
+            ),
             damage,
             disabled: false,
         }
@@ -109,10 +119,7 @@ fn check_projectile_intersections(
         }
 
         let filter = QueryFilter {
-            groups: Some(CollisionGroups::new(
-                Group::from_bits(0b1000).unwrap(),
-                Group::from_bits(0b0100).unwrap(),
-            )),
+            groups: Some(projectile.groups),
             exclude_collider: Some(entity),
             ..default()
         };
@@ -123,7 +130,7 @@ fn check_projectile_intersections(
             collider,
             filter,
             |other| {
-                if projectile.source == Some(other) {
+                if projectile.source == other {
                     return false;
                 }
                 ev_projectile_collision.send(ProjectileCollision {
