@@ -71,7 +71,14 @@ fn spawn_player_big(
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,
-        turrets: vec![None, None, None, None, None, Some(TurretType::Cannon)],
+        turrets: vec![
+            Some(TurretType::Rocket),
+            Some(TurretType::Rocket),
+            Some(TurretType::Rocket),
+            Some(TurretType::Cannon),
+            Some(TurretType::Cannon),
+            Some(TurretType::Cannon),
+        ],
         health: Health::new(entity, 10000.0),
     });
 }

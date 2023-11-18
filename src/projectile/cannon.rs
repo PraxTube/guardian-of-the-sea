@@ -11,7 +11,7 @@ use super::{Projectile, ProjectileTimer, ProjectileType};
 
 const DAMAGE: f32 = 20.0;
 const LIFE_TIME: f32 = 2.0;
-const CANNON_SIZE: f32 = 3.0;
+const CANNON_SIZE: f32 = 2.0;
 
 #[derive(Component, Clone)]
 pub struct Cannon {
@@ -23,7 +23,7 @@ impl Default for Cannon {
     fn default() -> Self {
         Self {
             source_velocity: Vec2::default(),
-            current_speed: 1000.0,
+            current_speed: 1200.0,
         }
     }
 }

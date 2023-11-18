@@ -34,6 +34,7 @@ impl Default for AnimSpriteTimer {
     }
 }
 
+#[allow(dead_code)]
 impl AnimSpriteTimer {
     pub fn new(seconds: f32) -> Self {
         Self {

@@ -51,33 +51,30 @@ pub enum TurretType {
 #[derive(Component, Clone)]
 pub struct Turret {
     pub turret_type: TurretType,
-    pub source: Option<Entity>,
+    pub source: Entity,
     pub target_direction: Vec2,
     pub offset: Vec3,
     pub cooling_down: bool,
     pub cooldown_timer: Timer,
 }
 
-impl Default for Turret {
-    fn default() -> Self {
-        Self {
-            turret_type: TurretType::Cannon,
-            source: None,
-            target_direction: Vec2::default(),
-            offset: Vec3::default(),
-            cooling_down: false,
-            cooldown_timer: Timer::new(Duration::from_secs_f32(0.1), TimerMode::Repeating),
-        }
-    }
-}
-
 impl Turret {
-    pub fn new(turret_type: TurretType, source: Entity, offset: Vec2) -> Self {
+    pub fn new(
+        turret_type: TurretType,
+        source: Entity,
+        offset: Vec2,
+        cooldown_seconds: f32,
+    ) -> Self {
         Self {
             turret_type,
-            source: Some(source),
+            source,
+            target_direction: Vec2::default(),
             offset: offset.extend(0.0),
-            ..default()
+            cooling_down: false,
+            cooldown_timer: Timer::new(
+                Duration::from_secs_f32(cooldown_seconds),
+                TimerMode::Repeating,
+            ),
         }
     }
 }
@@ -125,6 +122,11 @@ fn spawn_turrets(
                     turret_type.clone(),
                     ev.entity,
                     turret_stats.turret_offsets[i],
+                    if turret_type.clone() == TurretType::Cannon {
+                        0.1
+                    } else {
+                        0.5
+                    },
                 ),
             ));
         }
@@ -136,11 +138,7 @@ fn reposition_turrets(
     q_transforms: Query<&Transform, Without<Turret>>,
 ) {
     for (mut turret_transform, turret) in &mut q_turrets {
-        let source = match turret.source {
-            Some(s) => s,
-            None => continue,
-        };
-        let source_transform = match q_transforms.get(source) {
+        let source_transform = match q_transforms.get(turret.source) {
             Ok(t) => t,
             Err(_) => continue,
         };
@@ -170,7 +168,7 @@ fn update_player_turret_targets(
     };
 
     for (transform, mut turret) in &mut turrets {
-        if turret.source != Some(player) {
+        if turret.source != player {
             continue;
         }
         turret.target_direction = -1.0 * (mouse_coords.0 - transform.translation.truncate()).perp();
@@ -191,11 +189,7 @@ fn update_enemy_turret_targets(
     };
 
     for (transform, mut turret) in &mut turrets {
-        let source = match turret.source {
-            Some(s) => s,
-            None => continue,
-        };
-        if q_enemies.get(source).is_err() {
+        if q_enemies.get(turret.source).is_err() {
             continue;
         }
         turret.target_direction = -1.0
@@ -223,13 +217,8 @@ fn despawn_turrets(
     q_turrets: Query<(Entity, &Turret)>,
 ) {
     for (entity, turret) in &q_turrets {
-        match turret.source {
-            Some(s) => {
-                if q_transforms.get(s).is_err() {
-                    commands.entity(entity).despawn_recursive();
-                }
-            }
-            None => commands.entity(entity).despawn_recursive(),
+        if q_transforms.get(turret.source).is_err() {
+            commands.entity(entity).despawn_recursive();
         }
     }
 }
@@ -257,21 +246,13 @@ fn trigger_player_turrets(
             continue;
         }
 
-        let source = match turret.source {
-            Some(s) => s,
-            None => {
-                error!("the shooting turret does not have a source");
-                continue;
-            }
-        };
-
-        if source != player {
+        if turret.source != player {
             continue;
         }
 
         ev_rocket_fired.send(TurretTriggered {
             turret_type: turret.turret_type,
-            source,
+            source: turret.source,
             source_transform: transform.clone(),
             source_velocity: p_transform.local_y().truncate() * ship_stats.current_speed,
         });
@@ -289,22 +270,14 @@ fn trigger_enemy_turrets(
             continue;
         }
 
-        let source = match turret.source {
-            Some(s) => s,
-            None => {
-                error!("the shooting turret does not have a source");
-                continue;
-            }
-        };
-
-        let (e_transform, ship_stats) = match q_enemies.get(source) {
+        let (e_transform, ship_stats) = match q_enemies.get(turret.source) {
             Ok(s) => (s.0, s.1),
             Err(_) => continue,
         };
 
         ev_rocket_fired.send(TurretTriggered {
             turret_type: turret.turret_type,
-            source,
+            source: turret.source,
             source_transform: transform.clone(),
             source_velocity: e_transform.local_y().truncate() * ship_stats.current_speed,
         });
