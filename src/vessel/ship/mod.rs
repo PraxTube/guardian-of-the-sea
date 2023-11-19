@@ -28,6 +28,8 @@ pub struct ShipStats {
     pub max_speed: f32,
 
     pub health_bar_size: f32,
+
+    pub dash: bool,
 }
 
 impl ShipStats {
@@ -98,10 +100,9 @@ impl BigShip {
                     Group::from_bits(collision_mask).unwrap(),
                 ),
                 ship_stats: ShipStats {
-                    delta_steering: 2.0,
-                    delta_speed: 750.0,
-                    drag: 1.,
-                    traction: 0.0,
+                    delta_steering: 1.5,
+                    delta_speed: 1000.0,
+                    drag: 1.0,
                     min_speed: -100.0,
                     max_speed: 1000.0,
                     health_bar_size: 4.0,
@@ -128,9 +129,16 @@ impl BigShip {
 
 pub fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &mut ShipStats)>) {
     for (mut transform, mut ship_stats) in &mut ships {
+        if ship_stats.dash {
+            let dir = transform.local_y();
+            transform.translation += dir * ship_stats.max_speed * 5.0 * time.delta_seconds();
+            ship_stats.acceleration = dir.truncate() * ship_stats.max_speed;
+            continue;
+        }
+
         transform.translation += ship_stats.acceleration.extend(0.0) * time.delta_seconds();
 
-        let drag = ship_stats.drag;
+        let drag = 1.0 - ship_stats.drag * time.delta_seconds();
         ship_stats.acceleration *= drag;
         ship_stats.acceleration = ship_stats
             .acceleration
@@ -152,10 +160,13 @@ pub fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &mut ShipSt
 
 pub fn steer_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &ShipStats)>) {
     for (mut transform, ship_stats) in &mut ships {
+        let limit = (ship_stats.max_speed / 2.0).powi(2);
+        let speed_factor = ship_stats.acceleration.length_squared().min(limit) / limit;
+        let drifting_factor = if ship_stats.traction == 0.0 { 2.0 } else { 1.0 };
         let rotation = ship_stats.current_steering_direction
             * ship_stats.delta_steering
-            * ship_stats.acceleration.length_squared()
-            / ship_stats.max_speed.powi(2)
+            * speed_factor
+            * drifting_factor
             * time.delta_seconds();
         transform.rotate_z(rotation);
     }

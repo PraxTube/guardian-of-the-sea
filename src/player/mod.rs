@@ -28,6 +28,7 @@ impl Plugin for GuardianPlayerPlugin {
                 accelerate_player,
                 toggle_player_active_momentum,
                 toggle_drift,
+                toggle_dash,
                 reduce_player_speed,
             )
                 .run_if(in_state(GameState::Gaming)),
@@ -100,7 +101,7 @@ fn accelerate_player(
         Err(_) => return,
     };
 
-    let mut acceleration = 0.0;
+    let mut acceleration: f32 = 0.0;
     if keys.pressed(KeyCode::W) {
         acceleration += 1.0;
     }
@@ -108,6 +109,7 @@ fn accelerate_player(
         acceleration -= 1.0;
     }
 
+    ship_stats.drag = (-acceleration.abs() + 1.0) * 2.0;
     let speed = ship_stats.delta_speed;
     ship_stats.acceleration +=
         transform.local_y().truncate() * speed * acceleration * time.delta_seconds();
@@ -147,4 +149,13 @@ fn toggle_drift(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut ShipStats, W
     } else {
         ship_stats.traction = 5.0;
     }
+}
+
+fn toggle_dash(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut ShipStats, With<Player>>) {
+    let mut ship_stats = match q_player.get_single_mut() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+
+    ship_stats.dash = keys.pressed(KeyCode::F);
 }
