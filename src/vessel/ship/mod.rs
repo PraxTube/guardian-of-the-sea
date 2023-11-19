@@ -16,10 +16,13 @@ impl Plugin for GuardianShipPlugin {
 
 #[derive(Component, Clone, Default)]
 pub struct ShipStats {
+    pub acceleration: Vec2,
     pub delta_steering: f32,
     pub delta_speed: f32,
     pub current_speed: f32,
     pub current_steering_direction: f32,
+    pub drag: f32,
+    pub traction: f32,
 
     pub min_speed: f32,
     pub max_speed: f32,
@@ -62,7 +65,7 @@ impl SmallShip1 {
                 ),
                 ship_stats: ShipStats {
                     delta_steering: 4.0,
-                    delta_speed: 100.0,
+                    delta_speed: 200.0,
                     min_speed: -150.0,
                     max_speed: 500.0,
                     health_bar_size: 1.0,
@@ -96,9 +99,11 @@ impl BigShip {
                 ),
                 ship_stats: ShipStats {
                     delta_steering: 2.0,
-                    delta_speed: 75.0,
+                    delta_speed: 750.0,
+                    drag: 1.,
+                    traction: 0.0,
                     min_speed: -100.0,
-                    max_speed: 400.0,
+                    max_speed: 1000.0,
                     health_bar_size: 4.0,
                     ..default()
                 },
@@ -121,17 +126,36 @@ impl BigShip {
     }
 }
 
-pub fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &ShipStats)>) {
-    for (mut transform, ship_stats) in &mut ships {
-        let direction = transform.local_y();
-        transform.translation += direction * ship_stats.current_speed * time.delta_seconds();
+pub fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &mut ShipStats)>) {
+    for (mut transform, mut ship_stats) in &mut ships {
+        transform.translation += ship_stats.acceleration.extend(0.0) * time.delta_seconds();
+
+        let drag = ship_stats.drag;
+        ship_stats.acceleration *= drag;
+        ship_stats.acceleration = ship_stats
+            .acceleration
+            .clamp_length(0.0, ship_stats.max_speed);
+
+        let speed = ship_stats.acceleration.length();
+        if speed == 0.0 {
+            return;
+        }
+
+        let traction = ship_stats.traction * time.delta_seconds();
+        ship_stats.acceleration = ship_stats
+            .acceleration
+            .normalize()
+            .lerp(transform.local_y().truncate(), traction)
+            * speed;
     }
 }
 
 pub fn steer_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &ShipStats)>) {
     for (mut transform, ship_stats) in &mut ships {
-        let rotation = ship_stats.delta_steering
-            * ship_stats.current_steering_direction
+        let rotation = ship_stats.current_steering_direction
+            * ship_stats.delta_steering
+            * ship_stats.acceleration.length_squared()
+            / ship_stats.max_speed.powi(2)
             * time.delta_seconds();
         transform.rotate_z(rotation);
     }

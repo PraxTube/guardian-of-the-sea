@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::collision::{PLAYER_LAYER, PROJECTILE_LAYER};
 use crate::turret::TurretType;
 use crate::ui::health::Health;
-use crate::vessel::ship::{BigShip, SmallShip1};
+use crate::vessel::ship::BigShip;
 use crate::vessel::SpawnVessel;
 use crate::{GameAssets, GameState, ShipStats};
 
@@ -27,6 +27,7 @@ impl Plugin for GuardianPlayerPlugin {
                 steer_player,
                 accelerate_player,
                 toggle_player_active_momentum,
+                toggle_drift,
                 reduce_player_speed,
             )
                 .run_if(in_state(GameState::Gaming)),
@@ -45,25 +46,6 @@ impl Default for Player {
             active_momentum: true,
         }
     }
-}
-
-fn spawn_player_small(
-    mut commands: Commands,
-    assets: Res<GameAssets>,
-    mut ev_spawn_vessel: EventWriter<SpawnVessel>,
-) {
-    let entity = commands
-        .spawn((
-            Player::default(),
-            SmallShip1::new(&assets, PLAYER_LAYER, PROJECTILE_LAYER),
-        ))
-        .id();
-    ev_spawn_vessel.send(SpawnVessel {
-        entity,
-        stats_scale: 1.0,
-        turrets: vec![None],
-        health: Health::new(entity, 200.0),
-    });
 }
 
 fn spawn_player_big(
@@ -111,10 +93,10 @@ fn steer_player(keys: Res<Input<KeyCode>>, mut player: Query<&mut ShipStats, Wit
 fn accelerate_player(
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut player: Query<&mut ShipStats, With<Player>>,
+    mut player: Query<(&Transform, &mut ShipStats), With<Player>>,
 ) {
-    let mut ship_stats = match player.get_single_mut() {
-        Ok(s) => s,
+    let (transform, mut ship_stats) = match player.get_single_mut() {
+        Ok(p) => (p.0, p.1),
         Err(_) => return,
     };
 
@@ -126,9 +108,9 @@ fn accelerate_player(
         acceleration -= 1.0;
     }
 
-    ship_stats.current_speed = (ship_stats.current_speed
-        + acceleration * ship_stats.delta_speed * time.delta_seconds())
-    .clamp(ship_stats.min_speed, ship_stats.max_speed);
+    let speed = ship_stats.delta_speed;
+    ship_stats.acceleration +=
+        transform.local_y().truncate() * speed * acceleration * time.delta_seconds();
 }
 
 fn toggle_player_active_momentum(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut Player>) {
@@ -151,5 +133,18 @@ fn reduce_player_speed(time: Res<Time>, mut q_player: Query<(&mut ShipStats, &Pl
         ship_stats.current_speed = (ship_stats.current_speed - reduction).max(0.0);
     } else {
         ship_stats.current_speed = (ship_stats.current_speed + reduction).min(0.0);
+    }
+}
+
+fn toggle_drift(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut ShipStats, With<Player>>) {
+    let mut ship_stats = match q_player.get_single_mut() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+
+    if keys.pressed(KeyCode::ShiftLeft) {
+        ship_stats.traction = 0.0;
+    } else {
+        ship_stats.traction = 5.0;
     }
 }
