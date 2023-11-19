@@ -60,8 +60,9 @@ fn spawn_player_small(
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,
+        stats_scale: 1.0,
         turrets: vec![None],
-        health: Health::new(entity, 100.0),
+        health: Health::new(entity, 200.0),
     });
 }
 
@@ -78,6 +79,7 @@ fn spawn_player_big(
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,
+        stats_scale: 1.0,
         turrets: vec![
             Some(TurretType::Rocket),
             Some(TurretType::Rocket),
@@ -86,7 +88,7 @@ fn spawn_player_big(
             Some(TurretType::Cannon),
             Some(TurretType::Cannon),
         ],
-        health: Health::new(entity, 10000.0),
+        health: Health::new(entity, 1000.0),
     });
 }
 

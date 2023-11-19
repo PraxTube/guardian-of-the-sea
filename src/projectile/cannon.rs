@@ -50,7 +50,12 @@ fn spawn_cannon(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTr
 
     commands.spawn((
         Cannon::new(ev.source_velocity),
-        Projectile::new(ProjectileType::Cannon, ev.source, ev.turret_mask, DAMAGE),
+        Projectile::new(
+            ProjectileType::Cannon,
+            ev.source,
+            ev.turret_mask,
+            DAMAGE * ev.stats_scale,
+        ),
         ProjectileTimer::new(LIFE_TIME),
         AnimSprite::new(4, true),
         AnimSpriteTimer::default(),

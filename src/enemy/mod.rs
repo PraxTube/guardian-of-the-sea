@@ -54,8 +54,9 @@ fn spawn_dummy_enemy(
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,
+        stats_scale: 0.1,
         turrets: vec![Some(TurretType::Rocket)],
-        health: Health::new(entity, 5000.0),
+        health: Health::new(entity, 1000.0),
     });
     let transform = Transform::from_translation(Vec3::new(-500.0, 500.0, 0.0));
     let entity = commands
@@ -67,6 +68,7 @@ fn spawn_dummy_enemy(
         .id();
     ev_spawn_vessel.send(SpawnVessel {
         entity,
+        stats_scale: 0.1,
         turrets: vec![Some(TurretType::Rocket)],
         health: Health::new(entity, 100.0),
     });

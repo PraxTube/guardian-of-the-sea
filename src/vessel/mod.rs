@@ -7,6 +7,7 @@ use crate::{turret::TurretType, ui::health::Health};
 #[derive(Event, Clone)]
 pub struct SpawnVessel {
     pub entity: Entity,
+    pub stats_scale: f32,
     pub turrets: Vec<Option<TurretType>>,
     pub health: Health,
 }

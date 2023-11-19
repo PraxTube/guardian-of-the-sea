@@ -52,7 +52,12 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTr
     )
     .with_rotation(ev.source_transform.rotation);
     let rocket = Rocket::new(ev.source_velocity);
-    let projectile = Projectile::new(ProjectileType::Rocket, ev.source, ev.turret_mask, DAMAGE);
+    let projectile = Projectile::new(
+        ProjectileType::Rocket,
+        ev.source,
+        ev.turret_mask,
+        DAMAGE * ev.stats_scale,
+    );
     let projectile_timer = ProjectileTimer::new(LIFE_TIME);
     let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
     let collision_groups = CollisionGroups::new(

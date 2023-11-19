@@ -52,6 +52,7 @@ pub enum TurretType {
 #[derive(Component, Clone)]
 pub struct Turret {
     pub turret_type: TurretType,
+    pub stats_scale: f32,
     pub source: Entity,
     pub target_direction: Vec2,
     pub offset: Vec3,
@@ -60,20 +61,16 @@ pub struct Turret {
 }
 
 impl Turret {
-    pub fn new(
-        turret_type: TurretType,
-        source: Entity,
-        offset: Vec2,
-        cooldown_seconds: f32,
-    ) -> Self {
+    pub fn new(turret_type: TurretType, stats_scale: f32, source: Entity, offset: Vec2) -> Self {
         Self {
             turret_type,
+            stats_scale,
             source,
             target_direction: Vec2::default(),
             offset: offset.extend(0.0),
             cooling_down: false,
             cooldown_timer: Timer::new(
-                Duration::from_secs_f32(cooldown_seconds),
+                Duration::from_secs_f32(cooldown_from_turret_type(turret_type, stats_scale)),
                 TimerMode::Repeating,
             ),
         }
@@ -93,6 +90,14 @@ pub struct TurretTriggered {
     pub source: Entity,
     pub source_transform: Transform,
     pub source_velocity: Vec2,
+    pub stats_scale: f32,
+}
+
+fn cooldown_from_turret_type(turret_type: TurretType, stats_scale: f32) -> f32 {
+    match turret_type {
+        TurretType::Cannon => 0.1 / stats_scale,
+        TurretType::Rocket => 0.5 / stats_scale,
+    }
 }
 
 fn spawn_turrets(
@@ -123,13 +128,9 @@ fn spawn_turrets(
                 },
                 Turret::new(
                     turret_type.clone(),
+                    ev.stats_scale,
                     ev.entity,
                     turret_stats.turret_offsets[i],
-                    if turret_type.clone() == TurretType::Cannon {
-                        0.1
-                    } else {
-                        0.5
-                    },
                 ),
             ));
         }
@@ -260,6 +261,7 @@ fn trigger_player_turrets(
             source: turret.source,
             source_transform: transform.clone(),
             source_velocity: p_transform.local_y().truncate() * ship_stats.current_speed,
+            stats_scale: turret.stats_scale,
         });
         turret.cooling_down = true;
     }
@@ -287,6 +289,7 @@ fn trigger_enemy_turrets(
             source: turret.source,
             source_transform: transform.clone(),
             source_velocity: e_transform.local_y().truncate() * ship_stats.current_speed,
+            stats_scale: turret.stats_scale,
         });
         turret.cooling_down = true;
     }
