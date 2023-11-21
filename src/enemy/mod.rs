@@ -28,6 +28,48 @@ fn spawn_dummy_enemy(
     assets: Res<GameAssets>,
     mut ev_spawn_vessel: EventWriter<SpawnVessel>,
 ) {
+    let transform = Transform::from_translation(Vec3::new(-500.0, -500.0, 0.0));
+    let entity = commands
+        .spawn((
+            Enemy::default(),
+            SmallStation1::new(&assets, ENEMY_LAYER, PROJECTILE_LAYER),
+        ))
+        .insert(transform)
+        .id();
+    ev_spawn_vessel.send(SpawnVessel {
+        entity,
+        stats_scale: 1.0,
+        turrets: vec![Some(TurretType::Rocket)],
+        health: Health::new(entity, 1000.0, 2.0),
+    });
+    let transform = Transform::from_translation(Vec3::new(500.0, -500.0, 0.0));
+    let entity = commands
+        .spawn((
+            Enemy::default(),
+            SmallStation1::new(&assets, ENEMY_LAYER, PROJECTILE_LAYER),
+        ))
+        .insert(transform)
+        .id();
+    ev_spawn_vessel.send(SpawnVessel {
+        entity,
+        stats_scale: 1.0,
+        turrets: vec![Some(TurretType::Cannon)],
+        health: Health::new(entity, 1000.0, 2.0),
+    });
+    let transform = Transform::from_translation(Vec3::new(500.0, 500.0, 0.0));
+    let entity = commands
+        .spawn((
+            Enemy::default(),
+            SmallStation1::new(&assets, ENEMY_LAYER, PROJECTILE_LAYER),
+        ))
+        .insert(transform)
+        .id();
+    ev_spawn_vessel.send(SpawnVessel {
+        entity,
+        stats_scale: 1.0,
+        turrets: vec![Some(TurretType::MediumRocket)],
+        health: Health::new(entity, 1000.0, 2.0),
+    });
     let transform = Transform::from_translation(Vec3::new(-500.0, 500.0, 0.0));
     let entity = commands
         .spawn((

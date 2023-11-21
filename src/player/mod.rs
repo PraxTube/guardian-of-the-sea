@@ -17,31 +17,14 @@ impl Plugin for GuardianPlayerPlugin {
             .add_plugins((input::GuardianInputPlugin,))
             .add_systems(
                 Update,
-                (
-                    steer_player,
-                    accelerate_player,
-                    toggle_player_active_momentum,
-                    toggle_drift,
-                    toggle_dash,
-                    reduce_player_speed,
-                )
+                (steer_player, accelerate_player, toggle_drift, toggle_dash)
                     .run_if(in_state(GameState::Gaming)),
             );
     }
 }
 
-#[derive(Component)]
-pub struct Player {
-    active_momentum: bool,
-}
-
-impl Default for Player {
-    fn default() -> Self {
-        Self {
-            active_momentum: true,
-        }
-    }
-}
+#[derive(Component, Default)]
+pub struct Player {}
 
 fn spawn_player_big(
     mut commands: Commands,
@@ -109,32 +92,6 @@ fn accelerate_player(
         transform.local_y().truncate() * speed * acceleration * time.delta_seconds();
 }
 
-fn toggle_player_active_momentum(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut Player>) {
-    if !keys.just_pressed(KeyCode::T) {
-        return;
-    }
-
-    let mut player = q_player.single_mut();
-    player.active_momentum = !player.active_momentum;
-}
-
-fn reduce_player_speed(time: Res<Time>, mut q_player: Query<(&mut ShipStats, &Player)>) {
-    let (mut ship_stats, player) = match q_player.get_single_mut() {
-        Ok(p) => (p.0, p.1),
-        Err(_) => return,
-    };
-    if player.active_momentum || ship_stats.current_speed == 0.0 {
-        return;
-    }
-
-    let reduction = ship_stats.delta_speed / 2.0 * time.delta_seconds();
-    if ship_stats.current_speed > 0.0 {
-        ship_stats.current_speed = (ship_stats.current_speed - reduction).max(0.0);
-    } else {
-        ship_stats.current_speed = (ship_stats.current_speed + reduction).min(0.0);
-    }
-}
-
 fn toggle_drift(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut ShipStats, With<Player>>) {
     let mut ship_stats = match q_player.get_single_mut() {
         Ok(p) => p,
@@ -154,5 +111,5 @@ fn toggle_dash(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut ShipStats, Wi
         Err(_) => return,
     };
 
-    ship_stats.dash = keys.pressed(KeyCode::F);
+    ship_stats.dash = keys.pressed(KeyCode::Space);
 }

@@ -99,7 +99,7 @@ fn cooldown_from_turret_type(turret_type: TurretType, stats_scale: f32) -> f32 {
     match turret_type {
         TurretType::Cannon => 0.1 / stats_scale,
         TurretType::Rocket => 0.5 / stats_scale,
-        TurretType::MediumRocket => 1.0 / stats_scale,
+        TurretType::MediumRocket => 5.0 / stats_scale,
     }
 }
 
@@ -163,28 +163,29 @@ fn rotate_turrets(mut turrets: Query<(&mut Transform, &Turret)>) {
 }
 
 fn update_player_turret_targets(
-    mut turrets: Query<(&Transform, &mut Turret)>,
-    q_player: Query<Entity, With<Player>>,
+    mut q_turrets: Query<&mut Turret>,
+    q_player: Query<(Entity, &Transform), With<Player>>,
     mouse_coords: Res<MouseWorldCoords>,
 ) {
-    let player = match q_player.get_single() {
-        Ok(p) => p,
+    let (player, transform) = match q_player.get_single() {
+        Ok(p) => (p.0, p.1),
         Err(err) => {
             error!("not exactly one player, {}", err);
             return;
         }
     };
 
-    for (transform, mut turret) in &mut turrets {
+    for mut turret in &mut q_turrets {
         if turret.source != player {
             continue;
         }
-        turret.target_point = mouse_coords.0;
+        // turret.target_point = mouse_coords.0;
+        turret.target_point = (transform.translation + transform.local_y() * 1e10).truncate();
     }
 }
 
 fn update_enemy_turret_targets(
-    mut turrets: Query<(&Transform, &mut Turret)>,
+    mut turrets: Query<&mut Turret>,
     q_player: Query<&Transform, With<Player>>,
     q_enemies: Query<Entity, With<Enemy>>,
 ) {
@@ -196,7 +197,7 @@ fn update_enemy_turret_targets(
         }
     };
 
-    for (transform, mut turret) in &mut turrets {
+    for mut turret in &mut turrets {
         if q_enemies.get(turret.source).is_err() {
             continue;
         }
@@ -231,12 +232,12 @@ fn despawn_turrets(
 }
 
 fn trigger_player_turrets(
-    keys: Res<Input<KeyCode>>,
+    buttons: Res<Input<MouseButton>>,
     mut q_turrets: Query<(&mut Turret, &Transform)>,
     q_player: Query<(Entity, &Transform, &ShipStats), With<Player>>,
     mut ev_rocket_fired: EventWriter<TurretTriggered>,
 ) {
-    if !keys.pressed(KeyCode::Space) {
+    if !buttons.pressed(MouseButton::Left) {
         return;
     }
 
