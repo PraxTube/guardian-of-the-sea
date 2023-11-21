@@ -69,8 +69,8 @@ fn spawn_player_big(
     });
 }
 
-fn steer_player(keys: Res<Input<KeyCode>>, mut player: Query<&mut ShipStats, With<Player>>) {
-    let mut ship_stats = match player.get_single_mut() {
+fn steer_player(keys: Res<Input<KeyCode>>, mut q_player: Query<&mut ShipStats, With<Player>>) {
+    let mut ship_stats = match q_player.get_single_mut() {
         Ok(s) => s,
         Err(_) => return,
     };
@@ -88,9 +88,9 @@ fn steer_player(keys: Res<Input<KeyCode>>, mut player: Query<&mut ShipStats, Wit
 fn accelerate_player(
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut player: Query<(&Transform, &mut ShipStats), With<Player>>,
+    mut q_player: Query<(&Transform, &mut ShipStats), With<Player>>,
 ) {
-    let (transform, mut ship_stats) = match player.get_single_mut() {
+    let (transform, mut ship_stats) = match q_player.get_single_mut() {
         Ok(p) => (p.0, p.1),
         Err(_) => return,
     };
@@ -119,7 +119,10 @@ fn toggle_player_active_momentum(keys: Res<Input<KeyCode>>, mut q_player: Query<
 }
 
 fn reduce_player_speed(time: Res<Time>, mut q_player: Query<(&mut ShipStats, &Player)>) {
-    let (mut ship_stats, player) = q_player.single_mut();
+    let (mut ship_stats, player) = match q_player.get_single_mut() {
+        Ok(p) => (p.0, p.1),
+        Err(_) => return,
+    };
     if player.active_momentum || ship_stats.current_speed == 0.0 {
         return;
     }
