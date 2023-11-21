@@ -55,7 +55,7 @@ pub struct Turret {
     pub turret_type: TurretType,
     pub stats_scale: f32,
     pub source: Entity,
-    pub target_direction: Vec2,
+    pub target_point: Vec2,
     pub offset: Vec3,
     pub cooling_down: bool,
     pub cooldown_timer: Timer,
@@ -67,7 +67,7 @@ impl Turret {
             turret_type,
             stats_scale,
             source,
-            target_direction: Vec2::default(),
+            target_point: Vec2::default(),
             offset: offset.extend(0.0),
             cooling_down: false,
             cooldown_timer: Timer::new(
@@ -92,6 +92,7 @@ pub struct TurretTriggered {
     pub source_transform: Transform,
     pub source_velocity: Vec2,
     pub stats_scale: f32,
+    pub target_point: Vec2,
 }
 
 fn cooldown_from_turret_type(turret_type: TurretType, stats_scale: f32) -> f32 {
@@ -157,7 +158,7 @@ fn reposition_turrets(
 
 fn rotate_turrets(mut turrets: Query<(&mut Transform, &Turret)>) {
     for (mut transform, turret) in &mut turrets {
-        transform.rotation = quat_from_vec2(turret.target_direction);
+        transform.rotation = quat_from_vec2(turret.target_point - transform.translation.truncate());
     }
 }
 
@@ -178,7 +179,7 @@ fn update_player_turret_targets(
         if turret.source != player {
             continue;
         }
-        turret.target_direction = -1.0 * (mouse_coords.0 - transform.translation.truncate()).perp();
+        turret.target_point = mouse_coords.0;
     }
 }
 
@@ -199,8 +200,7 @@ fn update_enemy_turret_targets(
         if q_enemies.get(turret.source).is_err() {
             continue;
         }
-        turret.target_direction = -1.0
-            * (player_transform.translation.truncate() - transform.translation.truncate()).perp();
+        turret.target_point = player_transform.translation.truncate();
     }
 }
 
@@ -265,6 +265,7 @@ fn trigger_player_turrets(
             source_transform: transform.clone(),
             source_velocity: p_transform.local_y().truncate() * ship_stats.current_speed,
             stats_scale: turret.stats_scale,
+            target_point: turret.target_point,
         });
         turret.cooling_down = true;
     }
@@ -273,7 +274,7 @@ fn trigger_player_turrets(
 fn trigger_enemy_turrets(
     mut q_turrets: Query<(&mut Turret, &Transform)>,
     q_enemies: Query<&Transform, With<Enemy>>,
-    mut ev_rocket_fired: EventWriter<TurretTriggered>,
+    mut ev_turret_triggered: EventWriter<TurretTriggered>,
 ) {
     for (mut turret, transform) in &mut q_turrets {
         if turret.cooling_down {
@@ -285,7 +286,7 @@ fn trigger_enemy_turrets(
             Err(_) => continue,
         };
 
-        ev_rocket_fired.send(TurretTriggered {
+        ev_turret_triggered.send(TurretTriggered {
             turret_type: turret.turret_type,
             turret_layer: ENEMY_LAYER,
             turret_mask: PLAYER_LAYER,
@@ -293,6 +294,7 @@ fn trigger_enemy_turrets(
             source_transform: transform.clone(),
             source_velocity: e_transform.local_y().truncate(),
             stats_scale: turret.stats_scale,
+            target_point: turret.target_point,
         });
         turret.cooling_down = true;
     }
