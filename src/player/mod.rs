@@ -13,26 +13,20 @@ pub struct GuardianPlayerPlugin;
 
 impl Plugin for GuardianPlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            OnEnter(GameState::Gaming),
-            (
-                // spawn_player_small,
-                spawn_player_big,
-            ),
-        )
-        .add_plugins((input::GuardianInputPlugin,))
-        .add_systems(
-            Update,
-            (
-                steer_player,
-                accelerate_player,
-                toggle_player_active_momentum,
-                toggle_drift,
-                toggle_dash,
-                reduce_player_speed,
-            )
-                .run_if(in_state(GameState::Gaming)),
-        );
+        app.add_systems(OnEnter(GameState::Gaming), (spawn_player_big,))
+            .add_plugins((input::GuardianInputPlugin,))
+            .add_systems(
+                Update,
+                (
+                    steer_player,
+                    accelerate_player,
+                    toggle_player_active_momentum,
+                    toggle_drift,
+                    toggle_dash,
+                    reduce_player_speed,
+                )
+                    .run_if(in_state(GameState::Gaming)),
+            );
     }
 }
 
@@ -71,7 +65,7 @@ fn spawn_player_big(
             Some(TurretType::Cannon),
             Some(TurretType::Cannon),
         ],
-        health: Health::new(entity, 1000.0),
+        health: Health::new(entity, 1000.0, 4.0),
     });
 }
 

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     projectile::ProjectileCollision,
     vessel::{ship::move_ships, SpawnVessel},
-    GameState, ShipStats,
+    GameState,
 };
 
 #[derive(Component, Clone)]
@@ -11,17 +11,25 @@ pub struct Health {
     pub entity: Entity,
     pub health: f32,
     pub max_health: f32,
-    pub ship_stats: ShipStats,
+    pub size: f32,
 }
 
 impl Health {
-    pub fn new(entity: Entity, max_health: f32) -> Self {
+    pub fn new(entity: Entity, max_health: f32, size: f32) -> Self {
         Self {
             entity,
             health: max_health,
             max_health,
-            ship_stats: ShipStats::default(),
+            size,
         }
+    }
+
+    pub fn health_bar_offset(&self) -> Vec3 {
+        Vec3::new(-30.0, -40.0, 0.0) * self.size
+    }
+
+    pub fn health_bar_scale(&self) -> Vec3 {
+        Vec3::new(60.0, 7.5, 1.0) * self.size
     }
 }
 
@@ -44,7 +52,7 @@ fn move_health_bars(
             }
 
             health_bar_transform.translation =
-                health_transform.translation + health.ship_stats.health_bar_offset();
+                health_transform.translation + health.health_bar_offset();
         }
     }
 }
@@ -94,24 +102,25 @@ fn spawn_container(
     commands: &mut Commands,
     spawn_position: Vec3,
     entity: Entity,
-    ship_stats: &ShipStats,
+    health: &Health,
 ) -> Entity {
     commands
         .spawn((
             HealthBar { entity },
             SpatialBundle {
-                transform: Transform::from_translation(
-                    spawn_position + ship_stats.health_bar_offset(),
-                ),
+                transform: Transform::from_translation(spawn_position + health.health_bar_offset()),
                 ..default()
             },
         ))
         .id()
 }
 
-fn spawn_background(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
-    let transform = Transform::from_scale(ship_stats.health_bar_scale())
-        .with_translation(Vec3::new(ship_stats.health_bar_scale().x / 2.0, 0.0, 10.0));
+fn spawn_background(commands: &mut Commands, health: &Health) -> Entity {
+    let transform = Transform::from_scale(health.health_bar_scale()).with_translation(Vec3::new(
+        health.health_bar_scale().x / 2.0,
+        0.0,
+        10.0,
+    ));
     commands
         .spawn((SpriteBundle {
             sprite: Sprite {
@@ -131,9 +140,12 @@ fn spawn_fill_container(commands: &mut Commands) -> Entity {
         .id()
 }
 
-fn spawn_fill(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
-    let transform = Transform::from_scale(ship_stats.health_bar_scale())
-        .with_translation(Vec3::new(ship_stats.health_bar_scale().x / 2.0, 0.0, 20.0));
+fn spawn_fill(commands: &mut Commands, health: &Health) -> Entity {
+    let transform = Transform::from_scale(health.health_bar_scale()).with_translation(Vec3::new(
+        health.health_bar_scale().x / 2.0,
+        0.0,
+        20.0,
+    ));
     commands
         .spawn((SpriteBundle {
             sprite: Sprite {
@@ -148,10 +160,10 @@ fn spawn_fill(commands: &mut Commands, ship_stats: &ShipStats) -> Entity {
 }
 
 fn spawn_health_bar(commands: &mut Commands, ev: SpawnVessel) {
-    let container = spawn_container(commands, Vec3::ZERO, ev.entity, &ev.health.ship_stats);
-    let background = spawn_background(commands, &ev.health.ship_stats);
+    let container = spawn_container(commands, Vec3::ZERO, ev.entity, &ev.health);
+    let background = spawn_background(commands, &ev.health);
     let fill_container = spawn_fill_container(commands);
-    let fill = spawn_fill(commands, &ev.health.ship_stats);
+    let fill = spawn_fill(commands, &ev.health);
 
     commands.entity(fill_container).push_children(&[fill]);
     commands
@@ -159,19 +171,11 @@ fn spawn_health_bar(commands: &mut Commands, ev: SpawnVessel) {
         .push_children(&[fill_container, background]);
 }
 
-fn spawn_health_bars(
-    mut commands: Commands,
-    q_ship_stats: Query<&ShipStats>,
-    mut ev_spawn_health: EventReader<SpawnVessel>,
-) {
+fn spawn_health_bars(mut commands: Commands, mut ev_spawn_health: EventReader<SpawnVessel>) {
     for ev in ev_spawn_health.read() {
         if let Some(mut entity) = commands.get_entity(ev.entity) {
-            if let Ok(ship_stats) = q_ship_stats.get(ev.entity) {
-                let mut ev = ev.clone();
-                ev.health.ship_stats = ship_stats.clone();
-                entity.insert(ev.health.clone());
-                spawn_health_bar(&mut commands, ev);
-            }
+            entity.insert(ev.health.clone());
+            spawn_health_bar(&mut commands, ev.clone());
         }
     }
 }

@@ -15,6 +15,7 @@ const SPARY_INTENSITY: f32 = 0.05;
 const LEFT_TURRET_OFFSET: Vec3 = Vec3::new(5.0, 5.0, 0.0);
 const RIGHT_TURRET_OFFSET: Vec3 = Vec3::new(-5.0, 5.0, 0.0);
 const DAMAGE: f32 = 5.0;
+const MEDIUM_DAMAGE: f32 = 20.0;
 const LIFE_TIME: f32 = 2.0;
 
 #[derive(Component, Clone)]
@@ -92,6 +93,40 @@ fn spawn_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTr
     ));
 }
 
+fn spawn_medium_rocket(commands: &mut Commands, assets: &Res<GameAssets>, ev: &TurretTriggered) {
+    let transform = Transform::from_translation(ev.source_transform.translation)
+        .with_rotation(ev.source_transform.rotation);
+    let rocket = Rocket {
+        current_speed: 2000.0,
+        ..default()
+    };
+    let projectile = Projectile::new(
+        ProjectileType::Rocket,
+        ev.source,
+        ev.turret_mask,
+        MEDIUM_DAMAGE * ev.stats_scale,
+    );
+    let projectile_timer = ProjectileTimer::new(LIFE_TIME);
+    let collider = Collider::capsule(Vec2::default(), Vec2::new(0.0, 7.0), 4.0);
+    let collision_groups = CollisionGroups::new(
+        Group::from_bits(PROJECTILE_LAYER).unwrap(),
+        Group::from_bits(ev.turret_mask).unwrap(),
+    );
+
+    commands.spawn((
+        rocket.clone(),
+        projectile.clone(),
+        projectile_timer.clone(),
+        SpriteBundle {
+            transform,
+            texture: assets.medium_rocket.clone(),
+            ..default()
+        },
+        collider.clone(),
+        collision_groups.clone(),
+    ));
+}
+
 fn spawn_rockets(
     mut commands: Commands,
     assets: Res<GameAssets>,
@@ -100,6 +135,8 @@ fn spawn_rockets(
     for ev in ev_turret_triggered.read() {
         if ev.turret_type == TurretType::Rocket {
             spawn_rocket(&mut commands, &assets, ev);
+        } else if ev.turret_type == TurretType::MediumRocket {
+            spawn_medium_rocket(&mut commands, &assets, ev);
         }
     }
 }

@@ -1,4 +1,5 @@
 pub mod ship;
+pub mod station;
 
 use bevy::prelude::*;
 

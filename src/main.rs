@@ -57,7 +57,7 @@ fn main() {
             projectile::ProjectilePlugin,
             turret::TurretPlugin,
             vessel::GuardianVesselPlugin,
-            // enemy::GuardianEnemyPlugin,
+            enemy::GuardianEnemyPlugin,
             player::GuardianPlayerPlugin,
         ))
         .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))

@@ -47,6 +47,7 @@ impl Plugin for TurretPlugin {
 pub enum TurretType {
     Cannon,
     Rocket,
+    MediumRocket,
 }
 
 #[derive(Component, Clone)]
@@ -97,6 +98,7 @@ fn cooldown_from_turret_type(turret_type: TurretType, stats_scale: f32) -> f32 {
     match turret_type {
         TurretType::Cannon => 0.1 / stats_scale,
         TurretType::Rocket => 0.5 / stats_scale,
+        TurretType::MediumRocket => 1.0 / stats_scale,
     }
 }
 
@@ -120,6 +122,7 @@ fn spawn_turrets(
             let texture = match turret_type {
                 TurretType::Cannon => assets.cannon_turret.clone(),
                 TurretType::Rocket => assets.rocket_turret.clone(),
+                TurretType::MediumRocket => assets.medium_rocket_turret.clone(),
             };
             commands.spawn((
                 SpriteBundle {
@@ -269,7 +272,7 @@ fn trigger_player_turrets(
 
 fn trigger_enemy_turrets(
     mut q_turrets: Query<(&mut Turret, &Transform)>,
-    q_enemies: Query<(&Transform, &ShipStats), With<Enemy>>,
+    q_enemies: Query<&Transform, With<Enemy>>,
     mut ev_rocket_fired: EventWriter<TurretTriggered>,
 ) {
     for (mut turret, transform) in &mut q_turrets {
@@ -277,8 +280,8 @@ fn trigger_enemy_turrets(
             continue;
         }
 
-        let (e_transform, ship_stats) = match q_enemies.get(turret.source) {
-            Ok(s) => (s.0, s.1),
+        let e_transform = match q_enemies.get(turret.source) {
+            Ok(t) => t,
             Err(_) => continue,
         };
 
@@ -288,7 +291,7 @@ fn trigger_enemy_turrets(
             turret_mask: PLAYER_LAYER,
             source: turret.source,
             source_transform: transform.clone(),
-            source_velocity: e_transform.local_y().truncate() * ship_stats.current_speed,
+            source_velocity: e_transform.local_y().truncate(),
             stats_scale: turret.stats_scale,
         });
         turret.cooling_down = true;

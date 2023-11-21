@@ -27,19 +27,7 @@ pub struct ShipStats {
     pub min_speed: f32,
     pub max_speed: f32,
 
-    pub health_bar_size: f32,
-
     pub dash: bool,
-}
-
-impl ShipStats {
-    pub fn health_bar_offset(&self) -> Vec3 {
-        Vec3::new(-30.0, -40.0, 0.0) * self.health_bar_size
-    }
-
-    pub fn health_bar_scale(&self) -> Vec3 {
-        Vec3::new(60.0, 7.5, 1.0) * self.health_bar_size
-    }
 }
 
 #[derive(Bundle)]
@@ -70,7 +58,6 @@ impl SmallShip1 {
                     delta_speed: 200.0,
                     min_speed: -150.0,
                     max_speed: 500.0,
-                    health_bar_size: 1.0,
                     ..default()
                 },
                 turret_stats: TurretStats {
@@ -105,7 +92,6 @@ impl BigShip {
                     drag: 1.0,
                     min_speed: -100.0,
                     max_speed: 1000.0,
-                    health_bar_size: 4.0,
                     ..default()
                 },
                 turret_stats: TurretStats {
@@ -131,7 +117,7 @@ pub fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &mut ShipSt
     for (mut transform, mut ship_stats) in &mut ships {
         if ship_stats.dash {
             let dir = transform.local_y();
-            transform.translation += dir * ship_stats.max_speed * 5.0 * time.delta_seconds();
+            transform.translation += dir * ship_stats.max_speed * 3.0 * time.delta_seconds();
             ship_stats.acceleration = dir.truncate() * ship_stats.max_speed;
             continue;
         }
