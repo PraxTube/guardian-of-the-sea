@@ -45,6 +45,7 @@ pub struct SmallShip1 {
 }
 
 impl SmallShip1 {
+    #[allow(dead_code)]
     pub fn new(assets: &Res<GameAssets>, collision_layer: u32, collision_mask: u32) -> Self {
         Self {
             ship_vessel: ShipVessel {
@@ -117,7 +118,7 @@ pub fn move_ships(time: Res<Time>, mut ships: Query<(&mut Transform, &mut ShipSt
     for (mut transform, mut ship_stats) in &mut ships {
         if ship_stats.dash {
             let dir = transform.local_y();
-            transform.translation += dir * ship_stats.max_speed * 3.0 * time.delta_seconds();
+            transform.translation += dir * ship_stats.max_speed * 2.0 * time.delta_seconds();
             ship_stats.acceleration = dir.truncate() * ship_stats.max_speed;
             continue;
         }
